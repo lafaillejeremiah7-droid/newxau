@@ -13,7 +13,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "bridge:twelvedata": "npx tsx src/bridges/twelve-data-bridge.ts",
-    "bridge:start": "npx tsx src/bridges/twelve-data-bridge.ts"
+    "bridge:live": "npx tsx src/bridges/live-data-bridge.ts",
+    "bridge:start": "npx tsx src/bridges/live-data-bridge.ts"
   },
   "repository": {
     "type": "git",
