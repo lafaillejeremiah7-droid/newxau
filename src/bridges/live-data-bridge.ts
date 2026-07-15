@@ -1,38 +1,35 @@
 /**
- * Live Data Bridge for the Isagi Engine Signal Bot.
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  Isagi Engine - LIVE XAU/USD Data Bridge                    ║
+ * ║  Source: TradingView (real-time, no API key needed)         ║
+ * ║  WebSocket: ws://localhost:8080                             ║
+ * ║  Timeframes: M1, M5, M15, H1                               ║
+ * ╚══════════════════════════════════════════════════════════════╝
  *
- * Provides real-time XAU/USD candle data via local WebSocket (port 8080).
- * Uses a multi-source approach:
- *   1. Primary: Twelve Data REST API polling for M1 candles
- *   2. Fallback: Simulated price data for testing/demo when API is unavailable
+ * Polls TradingView's free public scanner API every 5 seconds for live
+ * XAU/USD price data. Builds M1 candles from ticks, then aggregates
+ * into M5, M15, and H1 timeframes. Emits completed candles via WebSocket.
  *
- * The bridge aggregates M1 candles into M5, M15, and H1 timeframes locally.
- *
- * Environment Variables:
- *   TWELVE_DATA_API_KEY - Twelve Data API key (free tier: ~800 calls/day)
- *   BRIDGE_PORT         - Local WebSocket server port (default: 8080)
- *   POLL_INTERVAL_SEC   - Seconds between REST polls (default: 60, min: 10)
- *   SIMULATION_MODE     - Force simulation mode: "true" | "false" (default: auto-detect)
+ * NO API key required. NO signup. Works immediately.
  *
  * Usage:
  *   npx tsx src/bridges/live-data-bridge.ts
- *
- * Free tier calculation (Twelve Data):
- *   800 calls/day = 1 call per ~108 seconds
- *   Recommended: POLL_INTERVAL_SEC=60 (generous) or 120 (conservative)
  */
 
 import WebSocket, { WebSocketServer } from 'ws';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
-const API_KEY = process.env.TWELVE_DATA_API_KEY ?? '';
 const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT ?? '8080', 10);
-const POLL_INTERVAL_SEC = Math.max(10, parseInt(process.env.POLL_INTERVAL_SEC ?? '60', 10));
-const FORCE_SIMULATION = process.env.SIMULATION_MODE === 'true';
+const POLL_INTERVAL_MS = 5_000; // Poll every 5 seconds
+const PRICE_LOG_INTERVAL_MS = 30_000; // Log price every 30 seconds
 
-const TWELVE_DATA_REST_URL = 'https://api.twelvedata.com/time_series';
-const SYMBOL = 'XAU/USD';
+const TRADINGVIEW_SCANNER_URL = 'https://scanner.tradingview.com/cfd/scan';
+
+const TRADINGVIEW_BODY = JSON.stringify({
+  symbols: { tickers: ['OANDA:XAUUSD'], query: { types: [] } },
+  columns: ['close', 'open', 'high', 'low', 'bid', 'ask', 'change', 'change_abs', 'volume'],
+});
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,22 +56,12 @@ interface ActiveCandle {
   tickCount: number;
 }
 
-interface TwelveDataResponse {
-  meta?: {
-    symbol: string;
-    interval: string;
-  };
-  values?: Array<{
-    datetime: string;
-    open: string;
-    high: string;
-    low: string;
-    close: string;
-    volume?: string;
+interface TradingViewResponse {
+  totalCount: number;
+  data: Array<{
+    s: string;
+    d: number[];
   }>;
-  status?: string;
-  code?: number;
-  message?: string;
 }
 
 // ─── Timeframe Configuration ─────────────────────────────────────────────────
@@ -95,15 +82,18 @@ for (const tf of TIMEFRAMES) {
   activeCandles.set(tf, null);
 }
 
-let isSimulationMode = false;
-let lastKnownPrice = 2650.0; // Default XAU/USD approximate price
-let simulationInterval: ReturnType<typeof setInterval> | null = null;
-let pollInterval: ReturnType<typeof setInterval> | null = null;
-let lastFetchedTimestamp: string | null = null;
-let consecutiveErrors = 0;
-const MAX_CONSECUTIVE_ERRORS = 5;
+let lastKnownPrice = 0;
+let lastBid = 0;
+let lastAsk = 0;
+let lastPriceLogMs = 0;
+let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-// ─── Candle Aggregation ──────────────────────────────────────────────────────
+// Exponential backoff state
+let consecutiveErrors = 0;
+const BASE_BACKOFF_MS = 5_000;
+const MAX_BACKOFF_MS = 60_000;
+
+// ─── Candle Boundary Utilities ───────────────────────────────────────────────
 
 /**
  * Get the candle boundary start for a given timestamp and timeframe.
@@ -113,37 +103,33 @@ function getCandleBoundaryStart(timestampMs: number, timeframe: Timeframe): numb
   return Math.floor(timestampMs / duration) * duration;
 }
 
+// ─── Tick Processing & Candle Aggregation ────────────────────────────────────
+
 /**
- * Process an incoming M1 candle and aggregate into higher timeframes.
- * The M1 candle is emitted directly; M5/M15/H1 are aggregated.
+ * Process an incoming price tick into all timeframes.
+ * Returns completed candles (emitted only on close / boundary crossing).
  */
-function processM1Candle(candle: CandleMessage): CandleMessage[] {
+function processTick(price: number, timestampMs: number, volume: number): CandleMessage[] {
   const completedCandles: CandleMessage[] = [];
 
-  // Always emit the M1 candle directly
-  completedCandles.push(candle);
-
-  const candleTimestampMs = new Date(candle.timestamp).getTime();
-
-  // Aggregate into higher timeframes (M5, M15, H1)
-  for (const tf of ['M5', 'M15', 'H1'] as Timeframe[]) {
+  for (const tf of TIMEFRAMES) {
     const duration = TIMEFRAME_DURATION_MS[tf];
-    const currentBoundary = getCandleBoundaryStart(candleTimestampMs, tf);
+    const currentBoundary = getCandleBoundaryStart(timestampMs, tf);
     const active = activeCandles.get(tf);
 
     if (active === null || active === undefined) {
-      // First candle for this timeframe
+      // First tick for this timeframe — open a new candle
       activeCandles.set(tf, {
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-        volume: candle.volume,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume,
         startMs: currentBoundary,
         tickCount: 1,
       });
     } else if (currentBoundary !== active.startMs) {
-      // New period — emit the completed candle
+      // Boundary crossed — emit completed candle
       const closedCandle: CandleMessage = {
         instrument: 'XAUUSD',
         timestamp: new Date(active.startMs).toISOString(),
@@ -156,7 +142,7 @@ function processM1Candle(candle: CandleMessage): CandleMessage[] {
       };
       completedCandles.push(closedCandle);
 
-      // Fill gap periods if any
+      // Fill gap periods if any (e.g., missed boundaries during outage)
       let nextBoundary = active.startMs + duration;
       while (nextBoundary < currentBoundary) {
         const gapCandle: CandleMessage = {
@@ -175,92 +161,16 @@ function processM1Candle(candle: CandleMessage): CandleMessage[] {
 
       // Start new candle
       activeCandles.set(tf, {
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-        volume: candle.volume,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume,
         startMs: currentBoundary,
         tickCount: 1,
       });
     } else {
       // Same period — update OHLCV
-      active.high = Math.max(active.high, candle.high);
-      active.low = Math.min(active.low, candle.low);
-      active.close = candle.close;
-      active.volume += candle.volume;
-      active.tickCount++;
-    }
-  }
-
-  return completedCandles;
-}
-
-/**
- * Process a tick (price update) into all timeframes.
- * Used for simulation mode where we get price ticks, not candles.
- */
-function processTick(price: number, timestampMs: number, volume: number): CandleMessage[] {
-  const completedCandles: CandleMessage[] = [];
-
-  for (const tf of TIMEFRAMES) {
-    const duration = TIMEFRAME_DURATION_MS[tf];
-    const currentBoundary = getCandleBoundaryStart(timestampMs, tf);
-    const active = activeCandles.get(tf);
-
-    if (active === null || active === undefined) {
-      activeCandles.set(tf, {
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        volume,
-        startMs: currentBoundary,
-        tickCount: 1,
-      });
-    } else if (currentBoundary !== active.startMs) {
-      // Emit completed candle
-      const closedCandle: CandleMessage = {
-        instrument: 'XAUUSD',
-        timestamp: new Date(active.startMs).toISOString(),
-        open: active.open,
-        high: active.high,
-        low: active.low,
-        close: active.close,
-        volume: active.volume,
-        timeframe: tf,
-      };
-      completedCandles.push(closedCandle);
-
-      // Fill gaps
-      let nextBoundary = active.startMs + duration;
-      while (nextBoundary < currentBoundary) {
-        const gapCandle: CandleMessage = {
-          instrument: 'XAUUSD',
-          timestamp: new Date(nextBoundary).toISOString(),
-          open: active.close,
-          high: active.close,
-          low: active.close,
-          close: active.close,
-          volume: 0,
-          timeframe: tf,
-        };
-        completedCandles.push(gapCandle);
-        nextBoundary += duration;
-      }
-
-      // New candle
-      activeCandles.set(tf, {
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        volume,
-        startMs: currentBoundary,
-        tickCount: 1,
-      });
-    } else {
-      // Update current candle
       active.high = Math.max(active.high, price);
       active.low = Math.min(active.low, price);
       active.close = price;
@@ -281,11 +191,15 @@ wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[LiveBridge] Client connected. Total: ${clients.size}`);
 
-  // Send current state info to new client
+  // Send current state to new client
   const statusMsg = JSON.stringify({
     type: 'status',
-    mode: isSimulationMode ? 'simulation' : 'live',
+    mode: 'live',
+    source: 'TradingView',
     lastPrice: lastKnownPrice,
+    bid: lastBid,
+    ask: lastAsk,
+    spread: lastAsk - lastBid,
     connectedAt: new Date().toISOString(),
   });
   ws.send(statusMsg);
@@ -298,6 +212,29 @@ wss.on('connection', (ws) => {
   ws.on('error', (err) => {
     console.error(`[LiveBridge] Client error: ${err.message}`);
     clients.delete(ws);
+  });
+
+  ws.on('message', (data: WebSocket.Data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'ping') {
+        ws.send(
+          JSON.stringify({
+            type: 'pong',
+            mode: 'live',
+            source: 'TradingView',
+            lastPrice: lastKnownPrice,
+            bid: lastBid,
+            ask: lastAsk,
+            spread: lastAsk - lastBid,
+            uptime: process.uptime(),
+            clients: clients.size,
+          })
+        );
+      }
+    } catch {
+      // Ignore non-JSON messages
+    }
   });
 });
 
@@ -312,192 +249,113 @@ function broadcastCandle(candle: CandleMessage): void {
     }
   }
   console.log(
-    `[LiveBridge] ${isSimulationMode ? '[SIM]' : '[LIVE]'} ` +
-      `${candle.timeframe} candle @ ${candle.timestamp} ` +
+    `[LiveBridge] [LIVE] ${candle.timeframe} candle closed @ ${candle.timestamp} ` +
       `O=${candle.open.toFixed(2)} H=${candle.high.toFixed(2)} ` +
       `L=${candle.low.toFixed(2)} C=${candle.close.toFixed(2)} V=${candle.volume}`
   );
 }
 
-// ─── Twelve Data REST Polling ────────────────────────────────────────────────
+// ─── TradingView Scanner Polling ─────────────────────────────────────────────
 
 /**
- * Fetch the latest M1 candles from Twelve Data REST API.
+ * Fetch latest XAU/USD data from TradingView public scanner API.
  */
-async function fetchLatestCandles(): Promise<CandleMessage[]> {
-  const url = `${TWELVE_DATA_REST_URL}?symbol=${encodeURIComponent(SYMBOL)}&interval=1min&outputsize=5&apikey=${API_KEY}`;
+async function fetchTradingViewPrice(): Promise<{
+  close: number;
+  open: number;
+  high: number;
+  low: number;
+  bid: number;
+  ask: number;
+  volume: number;
+}> {
+  const response = await fetch(TRADINGVIEW_SCANNER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: TRADINGVIEW_BODY,
+  });
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = (await response.json()) as TwelveDataResponse;
-
-    if (data.code || data.status === 'error') {
-      throw new Error(data.message ?? 'Unknown API error');
-    }
-
-    if (!data.values || data.values.length === 0) {
-      throw new Error('No candle data in response');
-    }
-
-    // Convert to CandleMessage format (data comes newest first)
-    const candles: CandleMessage[] = data.values
-      .map((v) => ({
-        instrument: 'XAUUSD' as const,
-        timestamp: new Date(v.datetime + ' UTC').toISOString(),
-        open: parseFloat(v.open),
-        high: parseFloat(v.high),
-        low: parseFloat(v.low),
-        close: parseFloat(v.close),
-        volume: parseInt(v.volume ?? '0', 10),
-        timeframe: 'M1' as Timeframe,
-      }))
-      .reverse(); // Oldest first for processing
-
-    return candles;
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Twelve Data fetch failed: ${errorMsg}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-}
 
-/**
- * Poll cycle: fetch latest candles and process new ones.
- */
-async function pollCycle(): Promise<void> {
-  try {
-    const candles = await fetchLatestCandles();
-    consecutiveErrors = 0;
+  const data = (await response.json()) as TradingViewResponse;
 
-    // Only process candles we haven't seen before
-    for (const candle of candles) {
-      if (lastFetchedTimestamp && candle.timestamp <= lastFetchedTimestamp) {
-        continue; // Already processed
-      }
-
-      lastKnownPrice = candle.close;
-      const completedCandles = processM1Candle(candle);
-      for (const c of completedCandles) {
-        broadcastCandle(c);
-      }
-    }
-
-    // Update last fetched timestamp
-    if (candles.length > 0) {
-      lastFetchedTimestamp = candles[candles.length - 1].timestamp;
-    }
-  } catch (err) {
-    consecutiveErrors++;
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[LiveBridge] Poll error (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${errorMsg}`);
-
-    if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-      console.warn('[LiveBridge] Too many consecutive errors. Switching to simulation mode...');
-      switchToSimulation();
-    }
+  if (!data.data || data.data.length === 0) {
+    throw new Error('No data returned from TradingView scanner');
   }
-}
 
-/**
- * Start REST polling mode.
- */
-function startPolling(): void {
-  console.log(
-    `[LiveBridge] Starting REST polling mode (interval: ${POLL_INTERVAL_SEC}s, ` +
-      `~${Math.floor(86400 / POLL_INTERVAL_SEC)} calls/day)`
-  );
-
-  // Initial fetch
-  pollCycle();
-
-  // Set up polling interval
-  pollInterval = setInterval(pollCycle, POLL_INTERVAL_SEC * 1000);
-}
-
-// ─── Simulation Mode ─────────────────────────────────────────────────────────
-
-/**
- * Generate a realistic simulated XAU/USD tick.
- * Uses random walk with mean reversion and realistic volatility.
- */
-function generateSimulatedTick(): { price: number; volume: number } {
-  // XAU/USD typical intraday volatility: ~$10-20 range per day
-  // Per-tick (every 5s): ~$0.05-0.30 move
-  const volatility = 0.15; // Standard deviation of per-tick move in USD
-  const meanReversionStrength = 0.001; // Slight pull toward 2650
-
-  // Random walk component
-  const randomMove = (Math.random() - 0.5) * 2 * volatility * (1 + Math.random());
-
-  // Mean reversion component (prevents drift too far)
-  const reversion = (2650 - lastKnownPrice) * meanReversionStrength;
-
-  // Occasional larger moves (simulating news/liquidity events)
-  const spike = Math.random() < 0.02 ? (Math.random() - 0.5) * 3.0 : 0;
-
-  lastKnownPrice = Math.max(2500, Math.min(2800, lastKnownPrice + randomMove + reversion + spike));
-
-  // Simulate volume (random, with occasional spikes)
-  const baseVolume = Math.floor(50 + Math.random() * 200);
-  const volumeSpike = Math.random() < 0.05 ? Math.floor(Math.random() * 500) : 0;
-
+  const row = data.data[0].d;
+  // Columns: close, open, high, low, bid, ask, change, change_abs, volume
   return {
-    price: Math.round(lastKnownPrice * 100) / 100,
-    volume: baseVolume + volumeSpike,
+    close: row[0],
+    open: row[1],
+    high: row[2],
+    low: row[3],
+    bid: row[4],
+    ask: row[5],
+    volume: row[8] ?? 0,
   };
 }
 
 /**
- * Start simulation mode — generates ticks every 5 seconds.
+ * Single poll cycle with auto-reconnect (exponential backoff).
  */
-function startSimulation(): void {
-  isSimulationMode = true;
-  console.log('[LiveBridge] Starting SIMULATION mode (tick every 5 seconds)');
-  console.log('[LiveBridge] Simulated base price: $' + lastKnownPrice.toFixed(2));
+async function pollCycle(): Promise<void> {
+  try {
+    const priceData = await fetchTradingViewPrice();
+    consecutiveErrors = 0; // Reset on success
 
-  simulationInterval = setInterval(() => {
-    const { price, volume } = generateSimulatedTick();
+    lastKnownPrice = priceData.close;
+    lastBid = priceData.bid;
+    lastAsk = priceData.ask;
+
     const nowMs = Date.now();
 
-    const completedCandles = processTick(price, nowMs, volume);
+    // Process the tick
+    const completedCandles = processTick(priceData.close, nowMs, priceData.volume);
     for (const candle of completedCandles) {
       broadcastCandle(candle);
     }
 
-    // Log current price periodically (every 12 ticks = ~1 min)
-    if (Math.random() < 0.083) {
-      console.log(`[LiveBridge] [SIM] Current price: $${price.toFixed(2)}`);
+    // Print live price every 30 seconds
+    if (nowMs - lastPriceLogMs >= PRICE_LOG_INTERVAL_MS) {
+      const spread = (priceData.ask - priceData.bid).toFixed(2);
+      console.log(
+        `[LiveBridge] XAU/USD $${priceData.close.toFixed(2)} | ` +
+          `Bid: $${priceData.bid.toFixed(2)} Ask: $${priceData.ask.toFixed(2)} | ` +
+          `Spread: $${spread} | Clients: ${clients.size}`
+      );
+      lastPriceLogMs = nowMs;
     }
-  }, 5000);
+
+    // Schedule next poll at normal interval
+    scheduleNextPoll(POLL_INTERVAL_MS);
+  } catch (err) {
+    consecutiveErrors++;
+    const errorMsg = err instanceof Error ? err.message : String(err);
+
+    // Exponential backoff: 5s, 10s, 20s, 40s, 60s (capped)
+    const backoffMs = Math.min(BASE_BACKOFF_MS * Math.pow(2, consecutiveErrors - 1), MAX_BACKOFF_MS);
+
+    console.error(
+      `[LiveBridge] Fetch error #${consecutiveErrors}: ${errorMsg}. ` +
+        `Retrying in ${(backoffMs / 1000).toFixed(1)}s...`
+    );
+
+    // Schedule next poll with backoff
+    scheduleNextPoll(backoffMs);
+  }
 }
 
 /**
- * Switch from live polling to simulation mode.
+ * Schedule the next poll cycle.
  */
-function switchToSimulation(): void {
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
+function scheduleNextPoll(delayMs: number): void {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
   }
-  if (!simulationInterval) {
-    startSimulation();
-  }
-}
-
-/**
- * Switch from simulation to live polling mode.
- */
-function switchToLive(): void {
-  if (simulationInterval) {
-    clearInterval(simulationInterval);
-    simulationInterval = null;
-  }
-  isSimulationMode = false;
-  consecutiveErrors = 0;
-  startPolling();
+  pollTimer = setTimeout(pollCycle, delayMs);
 }
 
 // ─── Periodic Candle Flush (Safety Net) ──────────────────────────────────────
@@ -506,7 +364,7 @@ function switchToLive(): void {
  * Every second, check if any active candle's period has ended.
  * Emits candles even if no new data arrives (prevents stale state).
  */
-setInterval(() => {
+const flushInterval = setInterval(() => {
   const nowMs = Date.now();
 
   for (const tf of TIMEFRAMES) {
@@ -531,77 +389,26 @@ setInterval(() => {
   }
 }, 1000);
 
-// ─── Health Check / Status Endpoint (simple HTTP on same port via upgrade) ───
-
-// We'll add a simple "ping" response for WebSocket clients
-wss.on('connection', (ws) => {
-  ws.on('message', (data: WebSocket.Data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      if (msg.type === 'ping') {
-        ws.send(
-          JSON.stringify({
-            type: 'pong',
-            mode: isSimulationMode ? 'simulation' : 'live',
-            lastPrice: lastKnownPrice,
-            uptime: process.uptime(),
-            clients: clients.size,
-          })
-        );
-      } else if (msg.type === 'switch_mode') {
-        // Allow manual mode switching via WebSocket command
-        if (msg.mode === 'simulation') {
-          switchToSimulation();
-          ws.send(JSON.stringify({ type: 'mode_changed', mode: 'simulation' }));
-        } else if (msg.mode === 'live') {
-          if (!API_KEY) {
-            ws.send(
-              JSON.stringify({
-                type: 'error',
-                message: 'Cannot switch to live mode: TWELVE_DATA_API_KEY not set',
-              })
-            );
-          } else {
-            switchToLive();
-            ws.send(JSON.stringify({ type: 'mode_changed', mode: 'live' }));
-          }
-        }
-      }
-    } catch {
-      // Ignore non-JSON messages
-    }
-  });
-});
-
 // ─── Startup ─────────────────────────────────────────────────────────────────
 
 console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║  Isagi Engine - Live Data Bridge (XAU/USD)                  ║
-║                                                              ║
-║  Local WebSocket: ws://localhost:${String(BRIDGE_PORT).padEnd(4)}                     ║
-║  Symbol: ${SYMBOL.padEnd(48)}║
-║  Timeframes: M1, M5, M15, H1                                ║
-║  Poll Interval: ${String(POLL_INTERVAL_SEC).padEnd(3)}s                                     ║
-║  Mode: ${(FORCE_SIMULATION ? 'SIMULATION (forced)' : API_KEY ? 'LIVE (REST polling)' : 'SIMULATION (no API key)').padEnd(50)}║
+║  Isagi Engine - LIVE XAU/USD Data Bridge                    ║
+║  Source: TradingView (real-time, no API key needed)         ║
+║  WebSocket: ws://localhost:${String(BRIDGE_PORT).padEnd(4)}                         ║
+║  Timeframes: M1, M5, M15, H1                               ║
+║  Poll Interval: 5s                                          ║
 ╚══════════════════════════════════════════════════════════════╝
 `);
 
 wss.on('listening', () => {
-  console.log(`[LiveBridge] WebSocket server listening on port ${BRIDGE_PORT}`);
+  console.log(`[LiveBridge] WebSocket server listening on ws://localhost:${BRIDGE_PORT}`);
+  console.log('[LiveBridge] Fetching live XAU/USD data from TradingView...');
+  console.log('[LiveBridge] No API key needed. No signup required.');
+  console.log('');
 
-  if (FORCE_SIMULATION || !API_KEY) {
-    if (!API_KEY && !FORCE_SIMULATION) {
-      console.log(
-        '[LiveBridge] No TWELVE_DATA_API_KEY set. Running in simulation mode.\n' +
-          '  To use live data, get a free key from https://twelvedata.com/pricing\n' +
-          '  Then: export TWELVE_DATA_API_KEY=your_key_here'
-      );
-    }
-    startSimulation();
-  } else {
-    startPolling();
-  }
+  // Start polling immediately
+  pollCycle();
 });
 
 // ─── Graceful Shutdown ───────────────────────────────────────────────────────
@@ -609,8 +416,8 @@ wss.on('listening', () => {
 function shutdown(signal: string): void {
   console.log(`\n[LiveBridge] Received ${signal}, shutting down...`);
 
-  if (pollInterval) clearInterval(pollInterval);
-  if (simulationInterval) clearInterval(simulationInterval);
+  if (pollTimer) clearTimeout(pollTimer);
+  clearInterval(flushInterval);
 
   // Close all client connections
   for (const client of clients) {
