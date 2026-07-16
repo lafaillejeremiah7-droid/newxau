@@ -8,6 +8,7 @@
  */
 
 import { createServer, Server as HttpServer, IncomingMessage } from 'node:http';
+import fs from 'node:fs';
 import path from 'node:path';
 import { Duplex } from 'node:stream';
 import express, { Application } from 'express';
@@ -86,9 +87,21 @@ export class DashboardServerImpl implements DashboardServer {
    * Configure Express routes for serving static files and API endpoints.
    */
   private setupRoutes(): void {
-    // Serve static dashboard files
+    // Try dist/output/dashboard first, fallback to src/output/dashboard
     const dashboardDir = path.resolve(__dirname, 'dashboard');
-    this.app.use(express.static(dashboardDir));
+    const srcDashboardDir = path.resolve(__dirname, '../../src/output/dashboard');
+
+    // Use whichever directory actually contains index.html
+    const staticDir = fs.existsSync(path.join(dashboardDir, 'index.html'))
+      ? dashboardDir
+      : srcDashboardDir;
+
+    this.app.use(express.static(staticDir));
+
+    // Explicitly serve index.html at root for compatibility
+    this.app.get('/', (_req, res) => {
+      res.sendFile(path.join(staticDir, 'index.html'));
+    });
 
     // Health check endpoint
     this.app.get('/api/health', (_req, res) => {
