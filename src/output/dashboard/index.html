@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Isagi Engine — XAU/USD Signal Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --border-color: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-green: #3fb950;
+      --accent-red: #f85149;
+      --accent-blue: #58a6ff;
+      --accent-yellow: #d29922;
+      --accent-purple: #bc8cff;
+      --accent-orange: #f0883e;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .header .instrument-badge {
+      font-size: 12px;
+      padding: 2px 8px;
+      background: var(--accent-blue);
+      color: #fff;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      transition: background 0.3s;
+    }
+
+    .connection-dot.disconnected {
+      background: var(--accent-red);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Disconnection Banner */
+    .disconnection-banner {
+      display: none;
+      background: rgba(248, 81, 73, 0.15);
+      border: 1px solid var(--accent-red);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin: 12px 24px 0;
+      font-size: 13px;
+      color: var(--accent-red);
+      align-items: center;
+      gap: 8px;
+    }
+
+    .disconnection-banner.visible {
+      display: flex;
+    }
+
+    .disconnection-banner .icon {
+      font-size: 16px;
+    }
+
+    /* Main Grid Layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 16px;
+      padding: 16px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* Engine State Card */
+    .engine-state-card {
+      grid-column: 1 / 2;
+    }
+
+    .state-display {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .state-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .state-indicator.scanning { background: var(--accent-green); }
+    .state-indicator.observation { background: var(--accent-yellow); }
+    .state-indicator.signal_evaluation { background: var(--accent-blue); }
+    .state-indicator.suppressed { background: var(--text-muted); }
+
+    .state-label {
+      font-size: 20px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
+    /* Filter Status Card */
+    .filter-status-card {
+      grid-column: 2 / 3;
+    }
+
+    .filter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+    }
+
+    .filter-name {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .filter-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .filter-badge.active {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+    }
+
+    .filter-badge.inactive {
+      background: rgba(110, 118, 129, 0.15);
+      color: var(--text-muted);
+    }
+
+    .filter-badge.frozen {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+    }
+
+    .filter-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Kelly Metrics Card */
+    .kelly-metrics-card {
+      grid-column: 3 / 4;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .metric-item {
+      padding: 10px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 6px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .metric-value {
+      font-size: 18px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .metric-value.risk {
+      color: var(--accent-blue);
+    }
+
+    .metric-value.drawdown {
+      color: var(--accent-red);
+    }
+
+    .metric-value.variance {
+      color: var(--accent-purple);
+    }
+
+    /* Signal Log Card */
+    .signal-log-card {
+      grid-column: 1 / -1;
+    }
+
+    .signal-table-wrapper {
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .signal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .signal-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .signal-table th {
+      background: var(--bg-tertiary);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .signal-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .signal-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .direction-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .direction-badge.long {
+      background: rgba(63, 185, 80, 0.15);
+      color: var(--accent-green);
+    }
+
+    .direction-badge.short {
+      background: rgba(248, 81, 73, 0.15);
+      color: var(--accent-red);
+    }
+
+    .zone-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .zone-badge.expansion_zone {
+      background: rgba(188, 140, 255, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .zone-badge.chop_zone {
+      background: rgba(210, 153, 34, 0.15);
+      color: var(--accent-yellow);
+    }
+
+    .price-cell {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .engine-state-card { grid-column: 1 / 2; }
+      .filter-status-card { grid-column: 2 / 3; }
+      .kelly-metrics-card { grid-column: 1 / -1; }
+      .signal-log-card { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 640px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        gap: 12px;
+      }
+      .engine-state-card,
+      .filter-status-card,
+      .kelly-metrics-card,
+      .signal-log-card {
+        grid-column: 1 / -1;
+      }
+      .header {
+        padding: 10px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1>Isagi Engine</h1>
+      <span class="instrument-badge">XAU/USD</span>
+    </div>
+    <div class="connection-status">
+      <span class="connection-dot" id="connectionDot"></span>
+      <span id="connectionLabel">Connected</span>
+    </div>
+  </header>
+
+  <!-- Disconnection Banner -->
+  <div class="disconnection-banner" id="disconnectionBanner">
+    <span class="icon">&#9888;</span>
+    <span>Connection lost. Last update: <strong id="lastUpdateTime">—</strong></span>
+  </div>
+
+  <!-- Main Grid -->
+  <main class="main-grid">
+    <!-- Engine State -->
+    <section class="card engine-state-card">
+      <div class="card-header">Engine State</div>
+      <div class="card-body">
+        <div class="state-display">
+          <div class="state-indicator" id="stateIndicator"></div>
+          <span class="state-label" id="stateLabel">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Filter Status -->
+    <section class="card filter-status-card">
+      <div class="card-header">Active Filters</div>
+      <div class="card-body">
+        <div class="filter-list">
+          <div class="filter-item">
+            <div>
+              <div class="filter-name">Time Gate</div>
+              <div class="filter-detail" id="timeGateDetail">12:00–17:00 UTC</div>
+            </div>
+            <span class="filter-badge" id="timeGateBadge">—</span>
+          </div>
+          <div class="filter-item">
+            <div>
+              <div class="filter-name">News Decoupler</div>
+              <div class="filter-detail" id="newsDecouplerDetail">No freeze active</div>
+            </div>
+            <span class="filter-badge" id="newsDecouplerBadge">—</span>
+          </div>
+          <div class="filter-item">
+            <div>
+              <div class="filter-name">Volume Classification</div>
+              <div class="filter-detail" id="volumeDetail">—</div>
+            </div>
+            <span class="filter-badge" id="volumeBadge">—</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kelly Metrics -->
+    <section class="card kelly-metrics-card">
+      <div class="card-header">Kelly Metrics</div>
+      <div class="card-body">
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <div class="metric-label">Risk Level</div>
+            <div class="metric-value risk" id="kellyRisk">$35.00</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Rolling Drawdown</div>
+            <div class="metric-value drawdown" id="kellyDrawdown">0.00%</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Equity Curve Variance</div>
+            <div class="metric-value variance" id="kellyVariance">0.000</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Status</div>
+            <div class="metric-value" id="kellyStatus" style="font-size:13px; color: var(--text-secondary);">Cold Start</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Signal Log -->
+    <section class="card signal-log-card">
+      <div class="card-header">Signal Log</div>
+      <div class="card-body" style="padding: 0;">
+        <div class="signal-table-wrapper">
+          <table class="signal-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Direction</th>
+                <th>Entry</th>
+                <th>SL</th>
+                <th>TP1</th>
+                <th>TP2</th>
+                <th>Zone</th>
+                <th>Risk</th>
+              </tr>
+            </thead>
+            <tbody id="signalTableBody">
+            </tbody>
+          </table>
+          <div class="empty-state" id="emptyState">
+            No signals generated yet. Waiting for engine activity...
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // --- State ---
+      var signals = [];
+      var MAX_SIGNALS = 100;
+      var ws = null;
+      var reconnectTimer = null;
+      var reconnectDelay = 1000;
+      var MAX_RECONNECT_DELAY = 30000;
+      var isConnected = false;
+      var lastUpdateTimestamp = null;
+
+      // --- DOM References ---
+      var connectionDot = document.getElementById('connectionDot');
+      var connectionLabel = document.getElementById('connectionLabel');
+      var disconnectionBanner = document.getElementById('disconnectionBanner');
+      var lastUpdateTimeEl = document.getElementById('lastUpdateTime');
+      var stateIndicator = document.getElementById('stateIndicator');
+      var stateLabel = document.getElementById('stateLabel');
+      var timeGateBadge = document.getElementById('timeGateBadge');
+      var timeGateDetail = document.getElementById('timeGateDetail');
+      var newsDecouplerBadge = document.getElementById('newsDecouplerBadge');
+      var newsDecouplerDetail = document.getElementById('newsDecouplerDetail');
+      var volumeBadge = document.getElementById('volumeBadge');
+      var volumeDetail = document.getElementById('volumeDetail');
+      var kellyRisk = document.getElementById('kellyRisk');
+      var kellyDrawdown = document.getElementById('kellyDrawdown');
+      var kellyVariance = document.getElementById('kellyVariance');
+      var kellyStatus = document.getElementById('kellyStatus');
+      var signalTableBody = document.getElementById('signalTableBody');
+      var emptyState = document.getElementById('emptyState');
+
+      // --- WebSocket Connection ---
+      function getWsUrl() {
+        var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return protocol + '//' + window.location.host;
+      }
+
+      function connect() {
+        if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+          return;
+        }
+
+        try {
+          ws = new WebSocket(getWsUrl());
+        } catch (e) {
+          scheduleReconnect();
+          return;
+        }
+
+        ws.onopen = function() {
+          isConnected = true;
+          reconnectDelay = 1000;
+          setConnected();
+        };
+
+        ws.onmessage = function(event) {
+          try {
+            var msg = JSON.parse(event.data);
+            handleMessage(msg);
+            lastUpdateTimestamp = new Date().toISOString();
+          } catch (e) {
+            // Ignore malformed messages
+          }
+        };
+
+        ws.onclose = function() {
+          isConnected = false;
+          setDisconnected();
+          scheduleReconnect();
+        };
+
+        ws.onerror = function() {
+          // onclose will fire after onerror
+        };
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) return;
+        reconnectTimer = setTimeout(function() {
+          reconnectTimer = null;
+          connect();
+        }, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
+      }
+
+      // --- Connection UI ---
+      function setConnected() {
+        connectionDot.classList.remove('disconnected');
+        connectionLabel.textContent = 'Connected';
+        disconnectionBanner.classList.remove('visible');
+      }
+
+      function setDisconnected() {
+        connectionDot.classList.add('disconnected');
+        connectionLabel.textContent = 'Disconnected';
+        disconnectionBanner.classList.add('visible');
+        lastUpdateTimeEl.textContent = lastUpdateTimestamp
+          ? formatTimestamp(lastUpdateTimestamp)
+          : '—';
+      }
+
+      // --- Message Handling ---
+      function handleMessage(msg) {
+        switch (msg.type) {
+          case 'snapshot':
+            handleStateSnapshot(msg.payload);
+            break;
+          case 'signal':
+            handleNewSignal(msg.payload);
+            break;
+          case 'state_change':
+            handleStateChange(msg.payload);
+            break;
+          case 'filter_status':
+            handleFilterStatus(msg.payload);
+            break;
+          case 'kelly_metrics':
+            handleKellyUpdate(msg.payload);
+            break;
+          default:
+            break;
+        }
+      }
+
+      function handleStateSnapshot(data) {
+        // Full state initialization
+        if (data.engineState) {
+          updateEngineState(data.engineState);
+        }
+        if (data.signals && Array.isArray(data.signals)) {
+          signals = data.signals.slice(0, MAX_SIGNALS);
+          renderSignalTable();
+        }
+        if (data.filterStatus) {
+          updateFilterStatus(data.filterStatus);
+        }
+        if (data.kellyMetrics) {
+          updateKellyMetrics(data.kellyMetrics);
+        }
+      }
+
+      function handleNewSignal(signal) {
+        signals.unshift(signal);
+        if (signals.length > MAX_SIGNALS) {
+          signals = signals.slice(0, MAX_SIGNALS);
+        }
+        renderSignalTable();
+      }
+
+      function handleStateChange(data) {
+        if (data.engineState) {
+          updateEngineState(data.engineState);
+        } else if (data.state || data.to) {
+          updateEngineState(data.state || data.to);
+        }
+      }
+
+      function handleFilterStatus(data) {
+        updateFilterStatus(data);
+      }
+
+      function handleKellyUpdate(data) {
+        updateKellyMetrics(data);
+      }
+
+      // --- UI Updates ---
+      function updateEngineState(state) {
+        // Remove all state classes
+        stateIndicator.className = 'state-indicator';
+        stateIndicator.classList.add(state);
+
+        var displayName = state.replace(/_/g, ' ');
+        stateLabel.textContent = displayName;
+      }
+
+      function updateFilterStatus(status) {
+        if (status.timeGate) {
+          if (status.timeGate.active) {
+            timeGateBadge.textContent = 'Active';
+            timeGateBadge.className = 'filter-badge active';
+          } else {
+            timeGateBadge.textContent = 'Inactive';
+            timeGateBadge.className = 'filter-badge inactive';
+          }
+          if (status.timeGate.windowStart && status.timeGate.windowEnd) {
+            timeGateDetail.textContent = status.timeGate.windowStart + ' – ' + status.timeGate.windowEnd + ' UTC';
+          }
+        }
+
+        if (status.newsDecoupler) {
+          if (status.newsDecoupler.freezeActive) {
+            newsDecouplerBadge.textContent = 'Frozen';
+            newsDecouplerBadge.className = 'filter-badge frozen';
+            var eventText = status.newsDecoupler.currentEvent || 'Event';
+            var freezeEnd = status.newsDecoupler.freezeEnd
+              ? ' until ' + formatTimestamp(status.newsDecoupler.freezeEnd)
+              : '';
+            newsDecouplerDetail.textContent = eventText + freezeEnd;
+          } else {
+            newsDecouplerBadge.textContent = 'Clear';
+            newsDecouplerBadge.className = 'filter-badge active';
+            newsDecouplerDetail.textContent = 'No freeze active';
+          }
+        }
+
+        if (status.volumeClassification) {
+          var vol = status.volumeClassification;
+          volumeDetail.textContent = vol.replace(/_/g, ' ');
+          if (vol === 'expansion_zone') {
+            volumeBadge.textContent = 'Expansion';
+            volumeBadge.className = 'filter-badge active';
+          } else if (vol === 'chop_zone') {
+            volumeBadge.textContent = 'Chop';
+            volumeBadge.className = 'filter-badge inactive';
+          } else {
+            volumeBadge.textContent = vol;
+            volumeBadge.className = 'filter-badge inactive';
+          }
+        }
+      }
+
+      function updateKellyMetrics(metrics) {
+        if (metrics.riskAmount !== undefined) {
+          kellyRisk.textContent = '$' + metrics.riskAmount.toFixed(2);
+        }
+        if (metrics.rollingDrawdown !== undefined) {
+          kellyDrawdown.textContent = (metrics.rollingDrawdown * 100).toFixed(2) + '%';
+        }
+        if (metrics.equityCurveVariance !== undefined) {
+          kellyVariance.textContent = metrics.equityCurveVariance.toFixed(4);
+        }
+        if (metrics.isColdStart !== undefined) {
+          kellyStatus.textContent = metrics.isColdStart ? 'Cold Start' : 'Active';
+          kellyStatus.style.color = metrics.isColdStart ? 'var(--accent-yellow)' : 'var(--accent-green)';
+        }
+        if (metrics.adjustmentReason) {
+          kellyStatus.textContent = metrics.adjustmentReason;
+          kellyStatus.style.color = 'var(--accent-orange)';
+        }
+      }
+
+      // --- Signal Table Rendering ---
+      function renderSignalTable() {
+        if (signals.length === 0) {
+          emptyState.style.display = 'block';
+          signalTableBody.innerHTML = '';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        var html = '';
+
+        for (var i = 0; i < signals.length; i++) {
+          var s = signals[i];
+          var dirClass = s.direction === 'long' ? 'long' : 'short';
+          var dirLabel = s.direction.toUpperCase();
+          var zoneClass = s.zoneClassification || 'chop_zone';
+          var zoneLabel = zoneClass === 'expansion_zone' ? 'Expansion' : 'Chop';
+
+          var tp1 = s.ticket1 ? s.ticket1.takeProfit : (s.tp1 || '—');
+          var tp2 = s.ticket2 ? s.ticket2.takeProfit : (s.tp2 || '—');
+
+          html += '<tr>'
+            + '<td>' + formatTimestamp(s.timestamp) + '</td>'
+            + '<td><span class="direction-badge ' + dirClass + '">' + dirLabel + '</span></td>'
+            + '<td class="price-cell">' + formatPrice(s.entryPrice) + '</td>'
+            + '<td class="price-cell">' + formatPrice(s.stopLoss) + '</td>'
+            + '<td class="price-cell">' + formatPrice(tp1) + '</td>'
+            + '<td class="price-cell">' + formatPrice(tp2) + '</td>'
+            + '<td><span class="zone-badge ' + zoneClass + '">' + zoneLabel + '</span></td>'
+            + '<td>$' + formatRisk(s.riskAmount) + '</td>'
+            + '</tr>';
+        }
+
+        signalTableBody.innerHTML = html;
+      }
+
+      // --- Formatting Helpers ---
+      function formatTimestamp(isoStr) {
+        if (!isoStr) return '—';
+        try {
+          var d = new Date(isoStr);
+          var h = pad2(d.getUTCHours());
+          var m = pad2(d.getUTCMinutes());
+          var s = pad2(d.getUTCSeconds());
+          var month = pad2(d.getUTCMonth() + 1);
+          var day = pad2(d.getUTCDate());
+          return month + '/' + day + ' ' + h + ':' + m + ':' + s;
+        } catch (e) {
+          return isoStr;
+        }
+      }
+
+      function pad2(n) {
+        return n < 10 ? '0' + n : '' + n;
+      }
+
+      function formatPrice(price) {
+        if (price === undefined || price === null || price === '—') return '—';
+        return Number(price).toFixed(2);
+      }
+
+      function formatRisk(risk) {
+        if (risk === undefined || risk === null) return '—';
+        return Number(risk).toFixed(2);
+      }
+
+      // --- Initialize ---
+      connect();
+    })();
+  </script>
+</body>
+</html>

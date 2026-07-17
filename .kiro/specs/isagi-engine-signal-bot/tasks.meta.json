@@ -1,0 +1,756 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Initialize TypeScript project with dependencies": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982826
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141990951
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142136128
+      }
+    ],
+    "1.2 Define core type interfaces and domain models": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982831
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142140047
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142326371
+      }
+    ],
+    "1.3 Implement configuration loader and signal-only enforcement": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982835
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142330768
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142487147
+      }
+    ],
+    "1.4 Implement internal event bus": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982844
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142140760
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142327127
+      }
+    ],
+    "2.1 Implement SQLite database initialization and schema": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982847
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142331578
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142487928
+      }
+    ],
+    "2.2 Implement signal and rejection logging methods": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982851
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142492343
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142681408
+      }
+    ],
+    "2.3 Implement write retry and memory buffer fallback": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982861
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142686964
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142861811
+      }
+    ],
+    "3.1 Implement Candle Ingestion Module with WebSocket connection": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982865
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142493147
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142682108
+      }
+    ],
+    "3.2 Implement XAU/USD instrument validation and rejection": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982869
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142687787
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142861040
+      }
+    ],
+    "3.4 Implement CandleBuffer with rolling SMA-20 volume calculation": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982879
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142494027
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142682967
+      }
+    ],
+    "4.1 Implement Candle Pattern Analyzer": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982882
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142882743
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143119630
+      }
+    ],
+    "4.3 Implement Liquidity Zone Detector": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982886
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142883437
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143119955
+      }
+    ],
+    "5.1 Implement Time Gate filter": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982894
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142884113
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143120672
+      }
+    ],
+    "5.3 Implement News Decoupler filter": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982897
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142884890
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143121478
+      }
+    ],
+    "5.5 Implement Circuit Breaker": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982902
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142885672
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143122277
+      }
+    ],
+    "5.7 Implement MacroFilterModule façade": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982911
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143127174
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143408611
+      }
+    ],
+    "6.1 Implement Signal Engine FSM structure and state transitions": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982915
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143128167
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143409310
+      }
+    ],
+    "6.2 Implement Observation Phase logic": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982919
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143414430
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143789563
+      }
+    ],
+    "6.4 Implement Short Signal structure detection": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982923
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143415218
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143790256
+      }
+    ],
+    "6.5 Implement Long Signal structure detection": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982926
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143415994
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143791050
+      }
+    ],
+    "6.7 Implement Entry Signal generation logic": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982931
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143416947
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143791804
+      }
+    ],
+    "7. Checkpoint - Core engine verification": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982935
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143801863
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143917938
+      }
+    ],
+    "8.1 Implement wick cluster detection and stop-loss calculation": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982938
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143923268
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144268836
+      }
+    ],
+    "8.2 Implement target projection and liquidity pocket detection": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982942
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143927186
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144269758
+      }
+    ],
+    "9.1 Implement Volume Filter with zone classification": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982946
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143924248
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144270413
+      }
+    ],
+    "10.1 Implement Kelly Sizer with dynamic risk calculation": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982950
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143925247
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144271207
+      }
+    ],
+    "11.1 Implement Slippage Simulator": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982954
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143926192
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144272153
+      }
+    ],
+    "12.1 Implement Signal Output Formatter": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982957
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144277291
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144887441
+      }
+    ],
+    "13. Checkpoint - Signal pipeline verification": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982961
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144895913
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144963195
+      }
+    ],
+    "14.1 Implement Telegram Notifier with retry logic": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982965
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144278159
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144888158
+      }
+    ],
+    "15.1 Implement Dashboard server backend": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982968
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144279040
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144888966
+      }
+    ],
+    "15.2 Implement Dashboard frontend (HTML/CSS/JS SPA)": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982972
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144280064
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144889796
+      }
+    ],
+    "16.1 Implement signal-only enforcement and startup validation": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982976
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144281166
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144890598
+      }
+    ],
+    "17. Checkpoint - Output and enforcement verification": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982979
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144896810
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144963390
+      }
+    ],
+    "18.1 Wire Candle Ingestion → Event Bus → Signal Engine FSM": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982983
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144969041
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145196379
+      }
+    ],
+    "18.2 Wire Signal Engine → Signal Pipeline → Output channels": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982987
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144969996
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145197173
+      }
+    ],
+    "18.3 Implement application startup sequence": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982990
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144970985
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145197878
+      }
+    ],
+    "19. Final checkpoint - Full system verification": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784141982993
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145202544
+      },
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145267823
+      }
+    ],
+    "1. Project scaffolding, configuration, and core interfaces": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142487157
+      }
+    ],
+    "3. Candle Ingestion Module and Instrument Filter": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142861043
+      }
+    ],
+    "2. Signal Logger and SQLite storage layer": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784142861814
+      }
+    ],
+    "4. Candle Pattern Analyzer and Liquidity Zone Detector": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143119959
+      }
+    ],
+    "5. Macro Filter Module (Time Gate, News Decoupler, Circuit Breaker)": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143408621
+      }
+    ],
+    "6. Signal Engine FSM (core state machine)": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784143791808
+      }
+    ],
+    "8. Signal Pipeline: Stop Loss and Target Mapper": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144269761
+      }
+    ],
+    "9. Signal Pipeline: Volume Filter and Zone Classifier": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144270418
+      }
+    ],
+    "10. Signal Pipeline: Kelly Sizer": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144271218
+      }
+    ],
+    "11. Signal Pipeline: Slippage Simulator": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144272156
+      }
+    ],
+    "12. Signal Output Formatter (split position logic)": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144887445
+      }
+    ],
+    "14. Telegram Notifier": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144888162
+      }
+    ],
+    "15. Dashboard (Express.js + WebSocket)": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144889799
+      }
+    ],
+    "16. Signal-Only Enforcement Layer": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784144890602
+      }
+    ],
+    "18. Integration wiring and end-to-end signal flow": [
+      {
+        "executionId": "79b4c649-94c0-4ef2-945e-462164f3a87b",
+        "chatSessionId": "6a6dfc40-90a7-46c7-aae1-beafcd0bbab1",
+        "timestamp": 1784145197881
+      }
+    ]
+  }
+}
