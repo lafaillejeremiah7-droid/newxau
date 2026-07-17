@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ISAGI XAU/USD Trading Terminal</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #0a0e27;
+      color: #00ff41;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .container {
+      display: grid;
+      grid-template-rows: 50px 1fr 50px;
+      height: 100vh;
+      gap: 4px;
+      padding: 4px;
+    }
+
+    header {
+      background: linear-gradient(to right, #1a1f3a, #0a0e27);
+      border: 1px solid #00ff41;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 12px;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .header-info {
+      display: flex;
+      gap: 20px;
+      flex: 1;
+      justify-content: center;
+    }
+
+    .header-status {
+      padding: 4px 8px;
+      border: 1px solid #00ff41;
+      border-radius: 2px;
+    }
+
+    .header-status.connected {
+      background: rgba(0, 255, 65, 0.1);
+      color: #00ff41;
+    }
+
+    .header-status.disconnected {
+      background: rgba(255, 0, 0, 0.1);
+      color: #ff0000;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 250px 1fr 250px;
+      gap: 4px;
+    }
+
+    .panel {
+      background: linear-gradient(135deg, #0f1428 0%, #1a1f3a 100%);
+      border: 1px solid #00ff41;
+      padding: 8px;
+      overflow-y: auto;
+    }
+
+    .panel-title {
+      color: #ffd700;
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 12px;
+      border-bottom: 1px solid #00ff41;
+      padding-bottom: 4px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin: 4px 0;
+      padding: 2px 0;
+    }
+
+    .stat-label {
+      color: #00ffff;
+    }
+
+    .stat-value {
+      color: #00ff41;
+      font-weight: bold;
+    }
+
+    .stat-value.negative {
+      color: #ff4444;
+    }
+
+    .pnl-large {
+      font-size: 24px;
+      font-weight: bold;
+      text-align: center;
+      margin: 8px 0;
+      padding: 8px;
+      border: 1px solid #00ff41;
+    }
+
+    .signal-log {
+      font-size: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .signal-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+      margin: 2px 0;
+    }
+
+    .signal-buy {
+      color: #00ff41;
+    }
+
+    .signal-sell {
+      color: #ff4444;
+    }
+
+    footer {
+      background: linear-gradient(to right, #1a1f3a, #0a0e27);
+      border: 1px solid #00ff41;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 10px;
+    }
+
+    .footer-stat {
+      display: flex;
+      gap: 8px;
+    }
+
+    .footer-stat-label {
+      color: #00ffff;
+    }
+
+    .footer-stat-value {
+      color: #00ff41;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-title">ISAGI XAU/USD</div>
+      <div class="header-info">
+        <div>Price: <span id="price">$0.00</span></div>
+        <div>State: <span id="state">--</span></div>
+        <div>Time: <span id="time">--:--:--</span></div>
+      </div>
+      <div class="header-status disconnected" id="status">● DISCONNECTED</div>
+    </header>
+
+    <div class="main-content">
+      <!-- LEFT PANEL: STATS -->
+      <div class="panel">
+        <div class="panel-title">PORTFOLIO</div>
+        <div class="pnl-large" id="pnl">$0.00</div>
+        
+        <div class="panel-title" style="margin-top: 12px;">METRICS</div>
+        <div class="stat-row">
+          <span class="stat-label">Total Signals:</span>
+          <span class="stat-value" id="signals-count">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Win Rate:</span>
+          <span class="stat-value" id="win-rate">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Max Drawdown:</span>
+          <span class="stat-value negative" id="drawdown">-0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Sharpe Ratio:</span>
+          <span class="stat-value" id="sharpe">0.00</span>
+        </div>
+      </div>
+
+      <!-- CENTER: CHART PLACEHOLDER -->
+      <div class="panel">
+        <div class="panel-title">XAU/USD CHART (1H)</div>
+        <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: #666;">
+          [Chart will load here - WebSocket connected]
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: SIGNALS -->
+      <div class="panel">
+        <div class="panel-title">RECENT SIGNALS</div>
+        <div class="signal-log" id="signal-log">
+          <div class="signal-entry">Waiting for signals...</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="footer-stat">
+        <span class="footer-stat-label">24h High:</span>
+        <span class="footer-stat-value" id="high">$0.00</span>
+      </div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">24h Low:</span>
+        <span class="footer-stat-value" id="low">$0.00</span>
+      </div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">Open:</span>
+        <span class="footer-stat-value" id="open">$0.00</span>
+      </div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">Close:</span>
+        <span class="footer-stat-value" id="close">$0.00</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // State
+    const state = {
+      connected: false,
+      price: 0,
+      pnl: 0,
+      signals: [],
+      candles: []
+    };
+
+    // WebSocket Connection
+    let ws = null;
+
+    function connectWebSocket() {
+      try {
+        ws = new WebSocket('ws://localhost:3000');
+
+        ws.onopen = () => {
+          console.log('[Dashboard] Connected to backend');
+          state.connected = true;
+          updateConnectionStatus();
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            handleMessage(msg);
+          } catch (e) {
+            console.error('Parse error:', e);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.error('[Dashboard] WebSocket error:', err);
+          state.connected = false;
+          updateConnectionStatus();
+        };
+
+        ws.onclose = () => {
+          console.log('[Dashboard] Disconnected');
+          state.connected = false;
+          updateConnectionStatus();
+          setTimeout(connectWebSocket, 3000);
+        };
+      } catch (e) {
+        console.error('Connection error:', e);
+        setTimeout(connectWebSocket, 3000);
+      }
+    }
+
+    function handleMessage(msg) {
+      if (msg.type === 'snapshot') {
+        // Initial state snapshot
+        console.log('[Dashboard] Received snapshot:', msg.payload);
+      } else if (msg.type === 'signal') {
+        // New signal
+        const signal = msg.payload;
+        state.signals.unshift(signal);
+        if (state.signals.length > 20) state.signals.pop();
+        updateSignalLog();
+      } else if (msg.type === 'candle_update') {
+        // Candle update
+        const candle = msg.payload.candle;
+        state.price = candle.close;
+        state.candles.push(candle);
+        if (state.candles.length > 100) state.candles.shift();
+        updateDisplay();
+      } else if (msg.type === 'kelly_metrics') {
+        // Kelly metrics
+        console.log('[Dashboard] Kelly metrics:', msg.payload);
+      } else if (msg.type === 'state_change') {
+        // State change
+        document.getElementById('state').textContent = msg.payload.engineState;
+      }
+    }
+
+    function updateConnectionStatus() {
+      const status = document.getElementById('status');
+      if (state.connected) {
+        status.textContent = '● CONNECTED';
+        status.className = 'header-status connected';
+      } else {
+        status.textContent = '● DISCONNECTED';
+        status.className = 'header-status disconnected';
+      }
+    }
+
+    function updateDisplay() {
+      document.getElementById('price').textContent = `$${state.price.toFixed(2)}`;
+      
+      // Calculate stats from signals
+      if (state.signals.length > 0) {
+        const wins = state.signals.filter(s => s.pnl > 0).length;
+        const winRate = ((wins / state.signals.length) * 100).toFixed(1);
+        document.getElementById('win-rate').textContent = winRate + '%';
+        document.getElementById('signals-count').textContent = state.signals.length;
+      }
+    }
+
+    function updateSignalLog() {
+      const log = document.getElementById('signal-log');
+      if (state.signals.length === 0) {
+        log.innerHTML = '<div class="signal-entry">No signals yet...</div>';
+        return;
+      }
+
+      log.innerHTML = state.signals.map(s => {
+        const direction = s.direction === 'long' ? 'BUY' : 'SELL';
+        const className = s.direction === 'long' ? 'signal-buy' : 'signal-sell';
+        const time = new Date(s.timestamp).toLocaleTimeString();
+        const pnl = s.pnl ? `$${s.pnl.toFixed(2)}` : 'pending';
+        return `<div class="signal-entry ${className}">${time} ${direction} @ $${s.entryPrice.toFixed(2)} | ${pnl}</div>`;
+      }).join('');
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+    }
+
+    // Initialize
+    connectWebSocket();
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>
