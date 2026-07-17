@@ -181,9 +181,10 @@ export function loadConfig(
       reconnectIntervalMs: 1000,
     },
     timeGate: {
-      startHourUTC: 12,
+      // Retained for configuration compatibility; TimeGate now operates 24/7.
+      startHourUTC: 0,
       startMinuteUTC: 0,
-      endHourUTC: 16,
+      endHourUTC: 23,
       endMinuteUTC: 59,
       endSecondUTC: 59,
     },

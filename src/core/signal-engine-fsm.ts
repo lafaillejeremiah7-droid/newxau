@@ -103,19 +103,19 @@ export class SignalEngineFSM implements ISignalEngineFSM {
   }
 
   /**
-   * Initialize the FSM by checking current time for initial state.
-   * If within 12:00:00–16:59:59 UTC → scanning state
-   * If outside → suppressed state
-   *
-   * Requirements: 6.5
+   * Initialize the FSM with the always-on operating gate.
+   * The TimeGate remains injectable for compatibility, but the production
+   * implementation is active at every UTC time.
    */
   initialize(currentTime: Date): void {
     const isActive = this.deps.timeGate.isActive(currentTime);
 
     if (isActive) {
-      this.transitionTo('scanning', 'initialization_within_active_window', currentTime);
+      this.transitionTo('scanning', 'initialization_always_active', currentTime);
     } else {
-      this.transitionTo('suppressed', 'initialization_outside_active_window', currentTime);
+      // Defensive fallback: TimeGate is always active, but retain the state
+      // transition for custom implementations of the dependency.
+      this.transitionTo('suppressed', 'initialization_gate_inactive', currentTime);
     }
   }
 

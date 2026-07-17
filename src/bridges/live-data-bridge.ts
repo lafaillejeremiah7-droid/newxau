@@ -187,6 +187,13 @@ function processTick(price: number, timestampMs: number, volume: number): Candle
 const wss = new WebSocketServer({ port: BRIDGE_PORT });
 const clients: Set<WebSocket> = new Set();
 
+wss.on('error', (error: Error & { code?: string }) => {
+  const code = error.code ? ` (${error.code})` : '';
+  console.error(`[LiveBridge] WebSocket server error${code}: ${error.message}`);
+  // Prevent an unhandled 'error' event from leaving startup in an ambiguous state.
+  process.exit(1);
+});
+
 wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[LiveBridge] Client connected. Total: ${clients.size}`);
