@@ -12,13 +12,13 @@ export interface SystemConfig {
     reconnectIntervalMs: number;
   };
 
-  /** Time gate operational window */
+  /** Time gate configuration shape retained for compatibility; operation is always-on. */
   timeGate: {
-    startHourUTC: 12;
-    startMinuteUTC: 0;
-    endHourUTC: 16;
-    endMinuteUTC: 59;
-    endSecondUTC: 59;
+    startHourUTC: number;
+    startMinuteUTC: number;
+    endHourUTC: number;
+    endMinuteUTC: number;
+    endSecondUTC: number;
   };
 
   /** Telegram notification settings */

@@ -91,52 +91,44 @@ describe('SignalEngineFSM', () => {
   });
 
   describe('initialize()', () => {
-    it('should set state to scanning when initialized within active window (12:00-17:00 UTC)', () => {
-      const time = createTimeUTC(14, 30); // 14:30 UTC - within window
+    it('should set state to scanning at any UTC time', () => {
+      const time = createTimeUTC(10, 0);
       timeGate.initialize(time);
       fsm.initialize(time);
 
       expect(fsm.getState()).toBe('scanning');
     });
 
-    it('should set state to suppressed when initialized outside active window (before 12:00)', () => {
-      const time = createTimeUTC(10, 0); // 10:00 UTC - before window
-      timeGate.initialize(time);
-      fsm.initialize(time);
-
-      expect(fsm.getState()).toBe('suppressed');
-    });
-
-    it('should set state to suppressed when initialized outside active window (after 17:00)', () => {
-      const time = createTimeUTC(17, 30); // 17:30 UTC - after window
-      timeGate.initialize(time);
-      fsm.initialize(time);
-
-      expect(fsm.getState()).toBe('suppressed');
-    });
-
-    it('should set state to scanning when initialized exactly at 12:00:00 UTC', () => {
-      const time = createTimeUTC(12, 0, 0); // 12:00:00 UTC - start of window
+    it('should remain scanning after the former 17:00 boundary', () => {
+      const time = createTimeUTC(17, 30);
       timeGate.initialize(time);
       fsm.initialize(time);
 
       expect(fsm.getState()).toBe('scanning');
     });
 
-    it('should set state to scanning when initialized at 16:59:59 UTC', () => {
-      const time = createTimeUTC(16, 59, 59); // 16:59:59 UTC - end of window
+    it('should set state to scanning at exactly 12:00:00 UTC', () => {
+      const time = createTimeUTC(12, 0, 0);
       timeGate.initialize(time);
       fsm.initialize(time);
 
       expect(fsm.getState()).toBe('scanning');
     });
 
-    it('should set state to suppressed when initialized exactly at 17:00:00 UTC', () => {
-      const time = createTimeUTC(17, 0, 0); // 17:00:00 UTC - first second outside
+    it('should set state to scanning at 16:59:59 UTC', () => {
+      const time = createTimeUTC(16, 59, 59);
       timeGate.initialize(time);
       fsm.initialize(time);
 
-      expect(fsm.getState()).toBe('suppressed');
+      expect(fsm.getState()).toBe('scanning');
+    });
+
+    it('should set state to scanning at exactly 17:00:00 UTC', () => {
+      const time = createTimeUTC(17, 0, 0);
+      timeGate.initialize(time);
+      fsm.initialize(time);
+
+      expect(fsm.getState()).toBe('scanning');
     });
 
     it('should emit state.change event on initialization', () => {
@@ -150,7 +142,7 @@ describe('SignalEngineFSM', () => {
       expect(transitions.length).toBe(1);
       expect(transitions[0].from).toBe('suppressed');
       expect(transitions[0].to).toBe('scanning');
-      expect(transitions[0].reason).toBe('initialization_within_active_window');
+      expect(transitions[0].reason).toBe('initialization_always_active');
     });
 
     it('should log state transition via Signal Logger on initialization', () => {
@@ -163,7 +155,7 @@ describe('SignalEngineFSM', () => {
         expect.objectContaining({
           from: 'suppressed',
           to: 'scanning',
-          reason: 'initialization_within_active_window',
+          reason: 'initialization_always_active',
         })
       );
     });
@@ -290,29 +282,27 @@ describe('SignalEngineFSM', () => {
     });
   });
 
-  describe('State transitions - Time Gate deactivation', () => {
-    it('should transition to suppressed from scanning when time reaches 17:00', () => {
+  describe('State transitions - always-on operating gate', () => {
+    it('should remain scanning when processing a candle at the former 17:00 boundary', () => {
       const initTime = createTimeUTC(14, 0);
       timeGate.initialize(initTime);
       fsm.initialize(initTime);
       expect(fsm.getState()).toBe('scanning');
 
-      // Simulate a candle at 17:00 — timeGate should deactivate
-      const deactivationCandle = createM5Candle({
+      const candle = createM5Candle({
         timestamp: '2024-01-15T17:00:00.000Z',
       });
 
-      fsm.processCandle(deactivationCandle);
+      fsm.processCandle(candle);
 
-      expect(fsm.getState()).toBe('suppressed');
+      expect(fsm.getState()).toBe('scanning');
     });
 
-    it('should cancel observation and transition to suppressed on time gate deactivation', () => {
+    it('does not cancel observation at the former 17:00 boundary', () => {
       const initTime = createTimeUTC(14, 0);
       timeGate.initialize(initTime);
       fsm.initialize(initTime);
 
-      // Create zone and enter observation
       const h1Candles: Candle[] = [
         createM5Candle({ timeframe: 'H1', high: 2048, low: 2045, timestamp: '2024-01-15T10:00:00.000Z' }),
         createM5Candle({ timeframe: 'H1', high: 2055, low: 2050, timestamp: '2024-01-15T11:00:00.000Z' }),
@@ -325,11 +315,10 @@ describe('SignalEngineFSM', () => {
       fsm.processCandle(createM5Candle({ close: 2052, timestamp: '2024-01-15T16:55:00.000Z' }));
       expect(fsm.getState()).toBe('observation');
 
-      // Time gate deactivation at 17:00
       fsm.processCandle(createM5Candle({ timestamp: '2024-01-15T17:00:00.000Z' }));
 
-      expect(fsm.getState()).toBe('suppressed');
-      expect(fsm.getObservationContext()).toBeNull();
+      expect(fsm.getState()).toBe('observation');
+      expect(fsm.getObservationContext()).not.toBeNull();
     });
   });
 
@@ -477,7 +466,7 @@ describe('SignalEngineFSM', () => {
       expect(transitions.length).toBe(1);
       expect(transitions[0].from).toBe('suppressed');
       expect(transitions[0].to).toBe('scanning');
-      expect(transitions[0].reason).toBe('initialization_within_active_window');
+      expect(transitions[0].reason).toBe('initialization_always_active');
       expect(transitions[0].timestamp).toBe(time.toISOString());
     });
 
@@ -593,19 +582,17 @@ describe('SignalEngineFSM', () => {
     });
   });
 
-  describe('Suppressed state - Time Gate activation', () => {
-    it('should transition from suppressed to scanning when Time Gate activates', () => {
-      // Initialize outside window
+  describe('Always-on operating state', () => {
+    it('starts scanning even before the former 12:00 boundary', () => {
       const earlyTime = createTimeUTC(11, 59, 59);
       timeGate.initialize(earlyTime);
       fsm.initialize(earlyTime);
-      expect(fsm.getState()).toBe('suppressed');
+      expect(fsm.getState()).toBe('scanning');
 
-      // Send candle at 12:00:00 - Time Gate should activate
-      const activationCandle = createM5Candle({
+      const candle = createM5Candle({
         timestamp: '2024-01-15T12:00:00.000Z',
       });
-      fsm.processCandle(activationCandle);
+      fsm.processCandle(candle);
 
       expect(fsm.getState()).toBe('scanning');
     });

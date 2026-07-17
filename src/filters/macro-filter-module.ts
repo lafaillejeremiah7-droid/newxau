@@ -2,7 +2,7 @@
  * Macro Filter Module (Façade)
  *
  * Combines the three individual gatekeeping filters:
- * - Time Gate: restricts signal generation to 12:00:00–16:59:59 UTC
+ * - Time Gate: always active; the former 12:00:00–16:59:59 UTC restriction has been removed
  * - News Decoupler: suppresses signals around high-impact USD events
  * - Circuit Breaker: suppresses signals after extreme adverse movement
  *
@@ -51,9 +51,10 @@ export class MacroFilterModule {
     this.circuitBreaker = circuitBreaker;
     this.eventBus = eventBus;
 
-    // Initialize state tracker with default values (all inactive)
+    // The operating gate is always active, so it should not emit a
+    // synthetic activation event on the first filter check.
     this.previousState = {
-      timeGateActive: false,
+      timeGateActive: true,
       newsFreezeActive: false,
       circuitBreakerActive: false,
     };
@@ -124,15 +125,12 @@ export class MacroFilterModule {
     // Detect state changes and emit events
     this.detectAndEmitStateChanges(currentTime);
 
-    // 1. Check Time Gate
+    // 1. Check Time Gate (always open; retained as a compatibility check)
     if (!this.timeGate.isActive(currentTime)) {
-      const reason =
-        this.timeGate.getSuppressionReason(currentTime) ??
-        'Outside active trading window (12:00:00–16:59:59 UTC)';
       return {
         passed: false,
         blockedBy: 'time_gate',
-        reason,
+        reason: 'Time Gate is inactive',
       };
     }
 
@@ -207,8 +205,8 @@ export class MacroFilterModule {
         action: currentState.timeGateActive ? 'activated' : 'deactivated',
         timestamp,
         reason: currentState.timeGateActive
-          ? 'Trading window opened (12:00:00 UTC)'
-          : 'Trading window closed (17:00:00 UTC)',
+          ? 'Operating gate is always active'
+          : 'Operating gate is inactive',
       };
       this.eventBus.publish('filter.change', event);
     }

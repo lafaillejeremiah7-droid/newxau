@@ -276,10 +276,10 @@ describe('Configuration Loader', () => {
     it('should include all static config values correctly', () => {
       const config = loadConfig({});
 
-      // Time gate
-      expect(config.timeGate.startHourUTC).toBe(12);
+      // Always-on operating gate (legacy config shape)
+      expect(config.timeGate.startHourUTC).toBe(0);
       expect(config.timeGate.startMinuteUTC).toBe(0);
-      expect(config.timeGate.endHourUTC).toBe(16);
+      expect(config.timeGate.endHourUTC).toBe(23);
       expect(config.timeGate.endMinuteUTC).toBe(59);
       expect(config.timeGate.endSecondUTC).toBe(59);
 

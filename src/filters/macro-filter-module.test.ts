@@ -57,16 +57,12 @@ describe('MacroFilterModule', () => {
   });
 
   describe('isTimeGateActive', () => {
-    it('returns true within the active window (12:00-16:59 UTC)', () => {
+    it('returns true at every UTC time', () => {
+      expect(module.isTimeGateActive(makeUTCDate(0, 0, 0))).toBe(true);
+      expect(module.isTimeGateActive(makeUTCDate(8, 0, 0))).toBe(true);
       expect(module.isTimeGateActive(makeUTCDate(12, 0, 0))).toBe(true);
-      expect(module.isTimeGateActive(makeUTCDate(14, 30, 0))).toBe(true);
-      expect(module.isTimeGateActive(makeUTCDate(16, 59, 59))).toBe(true);
-    });
-
-    it('returns false outside the active window', () => {
-      expect(module.isTimeGateActive(makeUTCDate(11, 59, 59))).toBe(false);
-      expect(module.isTimeGateActive(makeUTCDate(17, 0, 0))).toBe(false);
-      expect(module.isTimeGateActive(makeUTCDate(8, 0, 0))).toBe(false);
+      expect(module.isTimeGateActive(makeUTCDate(17, 0, 0))).toBe(true);
+      expect(module.isTimeGateActive(makeUTCDate(23, 59, 59))).toBe(true);
     });
   });
 
@@ -149,8 +145,8 @@ describe('MacroFilterModule', () => {
       const status = module.getFilterStatus();
 
       expect(status.timeGate.active).toBe(true);
-      expect(status.timeGate.windowStart).toBe('12:00:00');
-      expect(status.timeGate.windowEnd).toBe('16:59:59');
+      expect(status.timeGate.windowStart).toBe('00:00:00');
+      expect(status.timeGate.windowEnd).toBe('23:59:59');
     });
 
     it('reflects news decoupler status when freeze is active', () => {
@@ -186,13 +182,13 @@ describe('MacroFilterModule', () => {
       expect(result.reason).toBeNull();
     });
 
-    it('blocks with time_gate when outside trading window', () => {
+    it('does not block at any UTC time because the operating gate is always open', () => {
       const candle = makeCandle();
       const result = module.checkAllFilters(makeUTCDate(8, 0, 0), candle);
 
-      expect(result.passed).toBe(false);
-      expect(result.blockedBy).toBe('time_gate');
-      expect(result.reason).toContain('Time Gate');
+      expect(result.passed).toBe(true);
+      expect(result.blockedBy).toBeNull();
+      expect(result.reason).toBeNull();
     });
 
     it('blocks with news_decoupler when news freeze is active', () => {
@@ -231,8 +227,7 @@ describe('MacroFilterModule', () => {
       expect(result.reason).toContain('Circuit breaker active');
     });
 
-    it('checks filters in order: Time Gate first', () => {
-      // Outside time window AND news freeze active
+    it('checks News Decoupler when the operating gate is always open', () => {
       const eventTime = makeUTCDate(8, 30, 0);
       newsDecoupler.setSchedule([
         { name: 'CPI', scheduledTime: eventTime, impact: 'high', currency: 'USD' },
@@ -241,8 +236,7 @@ describe('MacroFilterModule', () => {
       const candle = makeCandle();
       const result = module.checkAllFilters(makeUTCDate(8, 30, 0), candle);
 
-      // Should block on time_gate first, not news_decoupler
-      expect(result.blockedBy).toBe('time_gate');
+      expect(result.blockedBy).toBe('news_decoupler');
     });
 
     it('checks News Decoupler before Circuit Breaker', () => {
@@ -271,42 +265,26 @@ describe('MacroFilterModule', () => {
   });
 
   describe('filter.change event emission', () => {
-    it('emits filter.change when Time Gate activates', () => {
+    it('does not emit Time Gate activation events', () => {
       const events: FilterChangeEvent[] = [];
       eventBus.subscribe('filter.change', (e) => events.push(e));
 
       const candle = makeCandle();
-
-      // First call outside window (sets previous state)
       module.checkAllFilters(makeUTCDate(11, 59, 0), candle);
-
-      // Now call inside window — should detect activation
       module.checkAllFilters(makeUTCDate(12, 0, 0), candle);
 
-      const timeGateEvent = events.find(
-        (e) => e.filterName === 'time_gate' && e.action === 'activated',
-      );
-      expect(timeGateEvent).toBeDefined();
-      expect(timeGateEvent!.reason).toContain('Trading window opened');
+      expect(events.some((e) => e.filterName === 'time_gate')).toBe(false);
     });
 
-    it('emits filter.change when Time Gate deactivates', () => {
+    it('does not emit Time Gate deactivation events', () => {
       const events: FilterChangeEvent[] = [];
       eventBus.subscribe('filter.change', (e) => events.push(e));
 
       const candle = makeCandle();
-
-      // First call inside window (sets previous state)
       module.checkAllFilters(makeUTCDate(16, 59, 0), candle);
-
-      // Now call outside window — should detect deactivation
       module.checkAllFilters(makeUTCDate(17, 0, 0), candle);
 
-      const timeGateEvent = events.find(
-        (e) => e.filterName === 'time_gate' && e.action === 'deactivated',
-      );
-      expect(timeGateEvent).toBeDefined();
-      expect(timeGateEvent!.reason).toContain('Trading window closed');
+      expect(events.some((e) => e.filterName === 'time_gate')).toBe(false);
     });
 
     it('emits filter.change when News Decoupler activates', () => {
@@ -423,9 +401,9 @@ describe('MacroFilterModule', () => {
       module.checkAllFilters(makeUTCDate(14, 0, 0), candle);
       module.checkAllFilters(makeUTCDate(14, 5, 0), candle);
 
-      // Only the first call should emit (time gate activated from initial false → true)
+      // The always-on gate remains unchanged across both calls.
       const timeGateEvents = events.filter((e) => e.filterName === 'time_gate');
-      expect(timeGateEvents.length).toBe(1);
+      expect(timeGateEvents.length).toBe(0);
     });
   });
 
