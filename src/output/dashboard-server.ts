@@ -97,19 +97,51 @@ export class DashboardServerImpl implements DashboardServer {
    * Configure Express routes for serving static files and API endpoints.
    */
   private setupRoutes(): void {
-    // Try dist/output/dashboard first, fallback to src/output/dashboard
+    // Determine dashboard directory with explicit logging
     const dashboardDir = path.resolve(__dirname, 'dashboard');
     const srcDashboardDir = path.resolve(__dirname, '../../src/output/dashboard');
+    const distIndexPath = path.join(dashboardDir, 'index.html');
+    const srcIndexPath = path.join(srcDashboardDir, 'index.html');
 
-    // Use whichever directory actually contains index.html
-    const staticDir = fs.existsSync(path.join(dashboardDir, 'index.html'))
-      ? dashboardDir
-      : srcDashboardDir;
+    const distExists = fs.existsSync(distIndexPath);
+    const srcExists = fs.existsSync(srcIndexPath);
 
+    // Select the first available directory
+    const staticDir = distExists ? dashboardDir : srcDashboardDir;
+
+    // 🔍 DEBUG: Log which dashboard path is being used
+    console.log('[Dashboard Server] Startup Diagnostics:');
+    console.log('[Dashboard Server]   dist path:', dashboardDir);
+    console.log('[Dashboard Server]   dist/index.html exists:', distExists);
+    console.log('[Dashboard Server]   src path:', srcDashboardDir);
+    console.log('[Dashboard Server]   src/index.html exists:', srcExists);
+    console.log('[Dashboard Server]   SELECTED staticDir:', staticDir);
+
+    // Check and log dashboard version
+    if (fs.existsSync(path.join(staticDir, 'index.html'))) {
+      const content = fs.readFileSync(path.join(staticDir, 'index.html'), 'utf-8');
+      const isNew = content.includes('ISAGI QUANT') && content.includes('lightweight-charts');
+      console.log('[Dashboard Server] Dashboard version:', isNew ? '✅ NEW (ISAGI QUANT + lightweight-charts)' : '❌ OLD');
+      console.log('[Dashboard Server] File size:', content.length, 'bytes');
+    }
+
+    // Add cache control middleware BEFORE static files
+    this.app.use((_req, res, next) => {
+      // Force no-cache headers
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      res.set('ETag', ''); // Disable ETag caching
+      next();
+    });
+
+    // Serve static files
     this.app.use(express.static(staticDir));
 
-    // Explicitly serve index.html at root for compatibility
+    // Explicitly serve index.html at root with no-cache
     this.app.get('/', (_req, res) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Content-Type', 'text/html; charset=utf-8');
       res.sendFile(path.join(staticDir, 'index.html'));
     });
 
