@@ -396,10 +396,10 @@ describe('SignalEngineFSM', () => {
         timestamp: '2024-01-15T14:10:00.000Z',
       }));
       fsm.processCandle(createM5Candle({
-        close: 2052,
-        open: 2053,
+        close: 2052.5,
+        open: 2053.5,
         high: 2054,
-        low: 2051,
+        low: 2052,
         timestamp: '2024-01-15T14:15:00.000Z',
       }));
 
@@ -413,6 +413,18 @@ describe('SignalEngineFSM', () => {
         timestamp: '2024-01-15T14:20:00.000Z',
       });
       fsm.processCandle(shootingStar);
+
+      expect(fsm.getState()).toBe('signal_evaluation');
+
+      // Feed expansion candles to keep FSM in signal_evaluation (short direction: bearish, body ratio >= 0.6)
+      fsm.processCandle(createM5Candle({
+        open: 2050, close: 2042, high: 2051, low: 2041,
+        timestamp: '2024-01-15T14:21:00.000Z',
+      }));
+      fsm.processCandle(createM5Candle({
+        open: 2042, close: 2034, high: 2043, low: 2033,
+        timestamp: '2024-01-15T14:22:00.000Z',
+      }));
 
       expect(fsm.getState()).toBe('signal_evaluation');
 

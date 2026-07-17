@@ -34,6 +34,7 @@ export interface ObservationContext {
 /** Context maintained during Signal Evaluation Phase */
 export interface EvaluationContext {
   direction: 'long' | 'short';
+  subPhase: 'expansion_tracking' | 'retracement_tracking' | 'entry_check';
   expansionCandles: Candle[];
   retracementCandles: Candle[];
   rejectionCandle: Candle | null;

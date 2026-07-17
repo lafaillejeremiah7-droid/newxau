@@ -342,6 +342,7 @@ export class ShortSignalDetector {
       // Valid short signal detected!
       const context: EvaluationContext = {
         direction: 'short',
+        subPhase: 'entry_check',
         expansionCandles: [...this.expansionCandles],
         retracementCandles: [...this.retracementCandles],
         rejectionCandle: candle,

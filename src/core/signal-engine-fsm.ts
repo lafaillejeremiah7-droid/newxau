@@ -9,6 +9,7 @@
  * Requirements: 1.1, 6.3, 6.4, 6.5
  */
 
+import crypto from 'node:crypto';
 import type { Candle } from '../types/candle.js';
 import type {
   EngineState,
@@ -23,6 +24,11 @@ import type { ILiquidityZoneDetector } from './liquidity-zone-detector.js';
 import type { CandlePatternAnalyzer } from './candle-pattern-analyzer.js';
 import type { SignalLogger } from '../data/signal-logger.js';
 import type { CandleBufferManager } from '../data/candle-buffer.js';
+
+export const MIN_EXPANSION_CANDLES = 2;
+export const MIN_RETRACEMENT_CANDLES = 2;
+export const MAX_RETRACEMENT_CANDLES = 4;
+export const BODY_RATIO_THRESHOLD = 0.6;
 
 /** Raw signal emitted by the FSM */
 export interface RawSignal {
@@ -392,6 +398,7 @@ export class SignalEngineFSM implements ISignalEngineFSM {
         // Initialize evaluation context (placeholder for tasks 6.4, 6.5)
         this.evaluationContext = {
           direction: zone.type === 'structural_high' ? 'short' : 'long',
+          subPhase: 'expansion_tracking',
           expansionCandles: [],
           retracementCandles: [],
           rejectionCandle: candle,
@@ -475,10 +482,9 @@ export class SignalEngineFSM implements ISignalEngineFSM {
 
   /**
    * Handle M5 candle in signal_evaluation state.
-   * Evaluate expansion/retracement structure and generate signals.
-   * (Placeholder — actual logic filled in by tasks 6.4, 6.5, 6.7)
+   * Three-sub-phase pipeline: expansion_tracking → retracement_tracking → entry_check
    *
-   * Requirements: 2.1-2.5, 3.1-3.6, 4.1-4.5
+   * Requirements: 1.1-1.5, 2.1-2.6, 3.1-3.4, 4.1-4.3, 5.1-5.4, 6.1-6.5, 7.1-7.4
    */
   private handleSignalEvaluationState(candle: Candle, currentTime: Date): void {
     if (!this.evaluationContext) {
@@ -486,21 +492,216 @@ export class SignalEngineFSM implements ISignalEngineFSM {
       return;
     }
 
-    // Placeholder: actual signal evaluation logic will be implemented
-    // in tasks 6.4 (short detection), 6.5 (long detection), 6.7 (entry signal generation)
-    // For now, this is the skeleton that handles the state.
+    const ctx = this.evaluationContext;
 
-    // The evaluation will eventually:
-    // 1. Track expansion candles
-    // 2. Track retracement candles
-    // 3. Detect rejection at retracement end
-    // 4. Validate structural window
-    // 5. Generate signal or invalidate setup
+    switch (ctx.subPhase) {
+      case 'expansion_tracking':
+        this.processExpansionPhase(candle, ctx, currentTime);
+        break;
+      case 'retracement_tracking':
+        this.processRetracementPhase(candle, ctx, currentTime);
+        break;
+      case 'entry_check':
+        this.processEntryCheck(ctx, currentTime);
+        break;
+    }
+  }
 
-    // Placeholder transition: setup invalidated (will be replaced by real logic)
-    // This prevents the FSM from getting stuck in signal_evaluation
-    void candle;
-    void currentTime;
+  /**
+   * Process a candle during the expansion tracking sub-phase.
+   * Accumulates expansion candles until minimum reached, then transitions.
+   */
+  private processExpansionPhase(candle: Candle, ctx: EvaluationContext, currentTime: Date): void {
+    if (this.isExpansionCandle(candle, ctx.direction)) {
+      // Valid expansion candle - add it
+      ctx.expansionCandles.push(candle);
+      this.updateExpansionAverages(ctx);
+    } else {
+      // Non-expansion candle received
+      if (ctx.expansionCandles.length >= MIN_EXPANSION_CANDLES) {
+        // Enough expansions - transition to retracement tracking
+        ctx.subPhase = 'retracement_tracking';
+        // Process this same candle as potential retracement
+        this.processRetracementPhase(candle, ctx, currentTime);
+      } else {
+        // Not enough expansion candles - invalidate
+        this.invalidateSetup('expansion_insufficient', currentTime);
+      }
+    }
+  }
+
+  /**
+   * Process a candle during the retracement tracking sub-phase.
+   * Checks for entry rejection first (if enough retracements), then counts retracements.
+   */
+  private processRetracementPhase(candle: Candle, ctx: EvaluationContext, currentTime: Date): void {
+    // If we have enough retracements, check for entry rejection FIRST
+    if (ctx.retracementCandles.length >= MIN_RETRACEMENT_CANDLES) {
+      const rejectionDirection = ctx.direction === 'short' ? 'bearish' : 'bullish';
+      const priorCandle = ctx.retracementCandles.length > 0
+        ? ctx.retracementCandles[ctx.retracementCandles.length - 1]
+        : undefined;
+      const rejectionResult = this.deps.candlePatternAnalyzer.isRejectionCandle(
+        candle,
+        rejectionDirection as 'bullish' | 'bearish',
+        priorCandle
+      );
+
+      if (rejectionResult.isRejection) {
+        // Entry rejection confirmed - store and move to entry_check
+        ctx.rejectionCandle = candle;
+        ctx.subPhase = 'entry_check';
+        this.processEntryCheck(ctx, currentTime);
+        return;
+      }
+    }
+
+    // Not a rejection (or not enough retracements yet) - try to classify as retracement
+    if (this.isRetracementCandle(candle, ctx.direction)) {
+      ctx.retracementCandles.push(candle);
+
+      // Check max retracement limit
+      if (ctx.retracementCandles.length > MAX_RETRACEMENT_CANDLES) {
+        this.invalidateSetup('retracement_exceeded_max', currentTime);
+        return;
+      }
+    } else {
+      // Candle is neither rejection nor retracement
+      if (ctx.retracementCandles.length >= MIN_RETRACEMENT_CANDLES) {
+        // We have enough retracements but this candle doesn't fit - invalidate
+        this.invalidateSetup('unexpected_candle_in_retracement', currentTime);
+      } else {
+        // Not enough retracements yet and candle doesn't qualify - count it anyway as neutral
+        ctx.retracementCandles.push(candle);
+        if (ctx.retracementCandles.length > MAX_RETRACEMENT_CANDLES) {
+          this.invalidateSetup('retracement_exceeded_max', currentTime);
+        }
+      }
+    }
+  }
+
+  /**
+   * Process the entry check sub-phase.
+   * Validates structural window and emits signal if valid.
+   */
+  private processEntryCheck(ctx: EvaluationContext, currentTime: Date): void {
+    if (!ctx.rejectionCandle || !this.observationContext) {
+      this.invalidateSetup('entry_check_missing_data', currentTime);
+      return;
+    }
+
+    const zone = this.observationContext.liquidityZone;
+    const entryPrice = ctx.rejectionCandle.close;
+
+    // Validate structural window: entry price must be within zone boundaries
+    if (entryPrice < zone.lowerBoundary || entryPrice > zone.upperBoundary) {
+      this.invalidateSetup('entry_outside_structural_window', currentTime);
+      return;
+    }
+
+    // All conditions met - construct and emit signal
+    this.constructAndEmitSignal(ctx, currentTime);
+
+    // Transition to scanning
+    this.evaluationContext = null;
+    this.observationContext = null;
+    this.transitionTo('scanning', 'signal_emitted', currentTime);
+  }
+
+  // ─── Expansion / Retracement Classification ─────────────────────────────────
+
+  /**
+   * Classify a candle as an expansion candle.
+   * Body ratio >= 0.6 AND close moves away from zone (correct direction).
+   */
+  private isExpansionCandle(candle: Candle, direction: 'long' | 'short'): boolean {
+    const range = candle.high - candle.low;
+    if (range === 0) return false; // doji/zero-range candle
+
+    const bodyRatio = Math.abs(candle.open - candle.close) / range;
+    if (bodyRatio < BODY_RATIO_THRESHOLD) return false;
+
+    // Direction check: close must move AWAY from zone
+    if (direction === 'short') {
+      return candle.close < candle.open; // bearish (moving down, away from structural high)
+    } else {
+      return candle.close > candle.open; // bullish (moving up, away from structural low)
+    }
+  }
+
+  /**
+   * Classify a candle as a retracement candle.
+   * Close pulls back TOWARD the zone (opposite to trade direction).
+   * Flat body (open === close) treated as retracement (neutral).
+   */
+  private isRetracementCandle(candle: Candle, direction: 'long' | 'short'): boolean {
+    if (candle.open === candle.close) return true; // flat body = neutral = retracement
+
+    if (direction === 'short') {
+      return candle.close > candle.open; // bullish candle pulling back up toward zone
+    } else {
+      return candle.close < candle.open; // bearish candle pulling back down toward zone
+    }
+  }
+
+  /**
+   * Recalculate expansion averages after adding a new expansion candle.
+   */
+  private updateExpansionAverages(ctx: EvaluationContext): void {
+    const candles = ctx.expansionCandles;
+    if (candles.length === 0) return;
+
+    ctx.averageExpansionVolume = candles.reduce((sum, c) => sum + c.volume, 0) / candles.length;
+    ctx.averageExpansionBodySize = candles.reduce((sum, c) => sum + Math.abs(c.open - c.close), 0) / candles.length;
+  }
+
+  // ─── Signal Construction & Invalidation ────────────────────────────────────
+
+  /**
+   * Construct a RawSignal from the current evaluation context and emit it.
+   */
+  private constructAndEmitSignal(ctx: EvaluationContext, currentTime: Date): void {
+    if (!this.observationContext || !ctx.rejectionCandle) return;
+
+    const zone = this.observationContext.liquidityZone;
+    const rejectionCandle = ctx.rejectionCandle;
+
+    // Determine rejection candle type by re-analyzing
+    const rejectionDirection = ctx.direction === 'short' ? 'bearish' : 'bullish';
+    const priorCandle = ctx.retracementCandles.length > 0
+      ? ctx.retracementCandles[ctx.retracementCandles.length - 1]
+      : undefined;
+    const rejectionResult = this.deps.candlePatternAnalyzer.isRejectionCandle(
+      rejectionCandle,
+      rejectionDirection as 'bullish' | 'bearish',
+      priorCandle
+    );
+
+    const signal: RawSignal = {
+      id: crypto.randomUUID(),
+      timestamp: currentTime.toISOString(),
+      direction: ctx.direction,
+      entryPrice: rejectionCandle.close,
+      liquidityZoneLevel: (zone.upperBoundary + zone.lowerBoundary) / 2,
+      structuralWindowUpper: zone.upperBoundary,
+      structuralWindowLower: zone.lowerBoundary,
+      rejectionCandleType: (rejectionResult.pattern ?? 'shooting_star') as RawSignal['rejectionCandleType'],
+      expansionCandles: [...ctx.expansionCandles],
+      retracementCandles: [...ctx.retracementCandles],
+      observationCandles: [...this.observationContext.candles],
+    };
+
+    this.emitSignal(signal);
+  }
+
+  /**
+   * Invalidate the current signal evaluation setup.
+   * Clears both evaluation and observation contexts, transitions to scanning.
+   */
+  private invalidateSetup(reason: string, currentTime: Date): void {
+    this.evaluationContext = null;
+    this.observationContext = null;
+    this.transitionTo('scanning', reason, currentTime);
   }
 
   // ─── Signal Emission ───────────────────────────────────────────────────────
