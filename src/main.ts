@@ -199,6 +199,11 @@ async function main(): Promise<void> {
     // Add to buffer for SMA/volume tracking
     candleBufferManager.addCandle(candle);
 
+    // Broadcast M5 candles to dashboard
+    if (candle.timeframe === 'M5') {
+      dashboard.broadcastCandleUpdate(candle);
+    }
+
     // Process M1 candles through circuit breaker
     if (candle.timeframe === 'M1') {
       macroFilterModule.processM1Candle(

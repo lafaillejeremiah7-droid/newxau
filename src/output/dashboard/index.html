@@ -3,1185 +3,517 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Isagi Quant — XAU/USD Trading Terminal</title>
+  <title>ISAGI QUANT - XAU/USD Trading Terminal</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4/dist/lightweight-charts.standalone.production.js"></script>
   <style>
-    :root {
-      --bg-primary: #0a0a0a;
-      --bg-secondary: #0f0f0f;
-      --bg-tertiary: #151515;
-      --neon-green: #00ff41;
-      --neon-magenta: #ff00ff;
-      --neon-cyan: #00ffff;
-      --gold-yellow: #ffd700;
-      --profit-green: #00ff41;
-      --loss-red: #ff4444;
-      --text-dim: #666666;
-      --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --gap-sm: 8px;
-      --gap-md: 12px;
-      --gap-lg: 16px;
-    }
-
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      font-family: var(--font-mono);
-      background: var(--bg-primary);
-      color: var(--neon-green);
-    }
-
     body {
-      display: flex;
-      flex-direction: column;
+      font-family: 'JetBrains Mono', monospace;
+      background-color: #0a0a0a;
+      color: #00ff41;
       overflow: hidden;
+      height: 100vh;
     }
 
-    .dashboard {
+    .container {
       display: grid;
-      grid-template-areas: 
-        "header header header header"
-        "pnl-large metrics-top metrics-top chart"
-        "pnl-large chart chart chart"
-        "net-viz chart chart chart"
-        "net-viz log log log"
-        "nav nav nav nav";
-      grid-template-columns: 1fr 1fr 1fr 1fr;
-      grid-template-rows: 50px 180px 1fr 200px auto 50px;
+      grid-template-rows: 60px 1fr 80px;
+      height: 100vh;
       gap: 8px;
       padding: 8px;
-      flex: 1;
-      overflow: hidden;
     }
 
-    /* --- HEADER BAR --- */
-    .header-bar {
-      grid-area: header;
-      display: flex;
+    header {
+      display: grid;
+      grid-template-columns: 300px 1fr 200px 200px 200px 150px;
+      gap: 12px;
+      background: linear-gradient(135deg, #0f0f1e 0%, #1a0f2e 100%);
+      border: 1px solid #00ff41;
+      padding: 0 16px;
       align-items: center;
-      justify-content: space-between;
-      padding: 8px 16px;
-      background: var(--bg-secondary);
-      border-bottom: 2px solid var(--neon-green);
+      border-radius: 4px;
       box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
     }
 
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .bot-identity {
-      font-size: 14px;
+    .header-title {
+      font-size: 18px;
       font-weight: 700;
-      letter-spacing: 3px;
-      color: var(--neon-green);
-      text-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
-    }
-
-    .instrument-badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 10px;
-      background: rgba(0, 255, 255, 0.15);
-      border: 1px solid var(--neon-cyan);
-      border-radius: 2px;
-      color: var(--neon-cyan);
-      text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
-    }
-
-    .mode-indicator {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 10px;
-      background: rgba(255, 215, 0, 0.15);
-      border: 1px solid var(--gold-yellow);
-      border-radius: 2px;
-      color: var(--gold-yellow);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      text-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .utc-clock {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--neon-green);
-      text-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
-      letter-spacing: 1px;
-    }
-
-    .connection-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-    }
-
-    .connection-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--loss-red);
-      box-shadow: 0 0 8px rgba(255, 68, 68, 0.6);
-    }
-
-    .connection-dot.connected {
-      background: var(--neon-green);
-      box-shadow: 0 0 12px rgba(0, 255, 65, 0.8);
-    }
-
-    @keyframes glow-pulse {
-      0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 65, 0.4); }
-      50% { box-shadow: 0 0 15px rgba(0, 255, 65, 0.8); }
-    }
-
-    .connection-dot.connected {
-      animation: glow-pulse 1s infinite;
-    }
-
-    /* --- LARGE P&L DISPLAY --- */
-    .pnl-display {
-      grid-area: pnl-large;
-      background: var(--bg-secondary);
-      border: 2px solid var(--gold-yellow);
-      border-radius: 4px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      box-shadow: inset 0 0 20px rgba(255, 215, 0, 0.1), 0 0 30px rgba(255, 215, 0, 0.2);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .pnl-display::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, transparent 50%);
-      pointer-events: none;
-    }
-
-    .pnl-value {
-      font-size: 48px;
-      font-weight: 700;
-      color: var(--gold-yellow);
-      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
-      margin: 0;
-      position: relative;
-      z-index: 1;
-      letter-spacing: 2px;
-    }
-
-    .pnl-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: var(--text-dim);
-      position: relative;
-      z-index: 1;
-      margin-top: 8px;
-    }
-
-    /* --- METRICS TOP PANEL --- */
-    .metrics-top {
-      grid-area: metrics-top;
-      background: var(--bg-secondary);
-      border: 1px solid rgba(0, 255, 65, 0.3);
-      border-radius: 4px;
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
-    }
-
-    .metrics-top-item {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-    }
-
-    .metrics-top-label {
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      margin-bottom: 4px;
-    }
-
-    .metrics-top-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--neon-green);
-      text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
-    }
-
-    .metrics-top-value.cyan {
-      color: var(--neon-cyan);
-      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
-    }
-
-    .metrics-top-value.gold {
-      color: var(--gold-yellow);
+      color: #ffd700;
       text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     }
 
-    /* --- CHART PANEL --- */
-    .chart-panel {
-      grid-area: chart;
-      background: var(--bg-secondary);
-      border: 1px solid rgba(0, 255, 65, 0.2);
+    .header-symbol {
+      font-size: 16px;
+      color: #00ffff;
+      text-align: center;
+    }
+
+    .header-mode {
+      font-size: 14px;
+      color: #ff00ff;
+      text-align: center;
+    }
+
+    .header-clock {
+      font-size: 14px;
+      color: #00ff41;
+      text-align: center;
+    }
+
+    .header-status {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      background-color: #001100;
+      border: 1px solid #00ff41;
+      text-align: center;
+    }
+
+    .header-status.connected {
+      color: #00ff41;
+      box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+    }
+
+    .header-status.disconnected {
+      color: #ff4444;
+      background-color: #220000;
+      border-color: #ff4444;
+      box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .panel {
+      border: 1px solid #00ff41;
+      background: linear-gradient(135deg, #0f0f1e 0%, #1a0f2e 100%);
       border-radius: 4px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
-    }
-
-    .chart-header {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--neon-green);
-      margin-bottom: 8px;
-      text-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
-    }
-
-    #chartContainer {
-      flex: 1;
-      min-height: 0;
-    }
-
-    /* --- NETWORK VISUALIZATION --- */
-    .network-viz {
-      grid-area: net-viz;
-      background: var(--bg-secondary);
-      border: 1px solid rgba(255, 0, 255, 0.3);
-      border-radius: 4px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 0 15px rgba(255, 0, 255, 0.1);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .network-header {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--neon-magenta);
-      margin-bottom: 8px;
-      text-shadow: 0 0 5px rgba(255, 0, 255, 0.4);
-    }
-
-    #networkCanvas {
-      flex: 1;
-      cursor: crosshair;
-    }
-
-    /* --- SIGNAL LOG --- */
-    .signal-log {
-      grid-area: log;
-      background: var(--bg-secondary);
-      border: 1px solid rgba(0, 255, 65, 0.2);
-      border-radius: 4px;
-      padding: 8px;
-      display: flex;
-      flex-direction: column;
+      padding: 12px;
       box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
       overflow: hidden;
     }
 
-    .log-header {
-      font-size: 10px;
-      font-weight: 700;
+    .panel-header {
+      font-size: 12px;
+      color: #00ffff;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--neon-green);
+      font-weight: 600;
       margin-bottom: 8px;
-      text-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
+      letter-spacing: 1px;
     }
 
-    .signal-log-table {
-      flex: 1;
-      overflow-y: auto;
+    .pnl-section {
+      grid-column: 1;
+      grid-row: 1;
     }
 
-    .signal-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 10px;
-    }
-
-    .signal-table thead {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    .signal-table th {
-      padding: 6px 8px;
-      text-align: left;
+    .pnl-display {
+      font-size: 48px;
       font-weight: 700;
-      color: var(--neon-green);
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid rgba(0, 255, 65, 0.3);
-      font-size: 8px;
+      margin-bottom: 8px;
+      text-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+    }
+
+    .pnl-display.positive {
+      color: #00ff41;
+    }
+
+    .pnl-display.negative {
+      color: #ff4444;
+    }
+
+    .pnl-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    .stat {
+      padding: 8px;
+      background-color: rgba(0, 255, 65, 0.05);
+      border: 1px solid rgba(0, 255, 65, 0.2);
+      border-radius: 3px;
+    }
+
+    .stat-label {
+      color: #00ffff;
+      font-size: 10px;
       text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      color: #00ff41;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .metrics-section {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .metric-card {
+      background-color: rgba(0, 255, 65, 0.05);
+      border: 1px solid rgba(0, 255, 65, 0.2);
+      border-radius: 3px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: #00ffff;
+      text-transform: uppercase;
+      margin-bottom: 4px;
       letter-spacing: 0.5px;
     }
 
-    .signal-table td {
-      padding: 5px 8px;
-      border-bottom: 1px solid rgba(0, 255, 65, 0.1);
-      color: var(--neon-green);
-    }
-
-    .signal-table tbody tr:hover {
-      background: rgba(0, 255, 65, 0.05);
-    }
-
-    .signal-table tbody tr.win {
-      border-left: 2px solid var(--profit-green);
-    }
-
-    .signal-table tbody tr.loss {
-      border-left: 2px solid var(--loss-red);
-    }
-
-    .signal-direction {
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 9px;
-    }
-
-    .signal-direction.long {
-      color: var(--profit-green);
-    }
-
-    .signal-direction.short {
-      color: var(--loss-red);
-    }
-
-    .signal-outcome {
+    .metric-value {
+      font-size: 16px;
       font-weight: 600;
-      text-transform: uppercase;
-      font-size: 8px;
+      color: #ffd700;
     }
 
-    .signal-outcome.pending {
-      color: var(--text-dim);
+    .chart-section {
+      grid-column: 1 / 3;
+      grid-row: 2;
+      position: relative;
     }
 
-    .signal-outcome.win {
-      color: var(--profit-green);
-      text-shadow: 0 0 5px rgba(0, 255, 65, 0.4);
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      overflow: hidden;
     }
 
-    .signal-outcome.loss {
-      color: var(--loss-red);
+    #chart {
+      width: 100%;
+      height: 100%;
     }
 
-    /* --- BOTTOM NAV --- */
-    .bottom-nav {
-      grid-area: nav;
+    footer {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+      background: linear-gradient(135deg, #0f0f1e 0%, #1a0f2e 100%);
+      border: 1px solid #00ff41;
+      padding: 8px 12px;
+      border-radius: 4px;
+      box-shadow: 0 0 15px rgba(0, 255, 65, 0.1);
+    }
+
+    .footer-metric {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      padding: 8px 16px;
-      background: var(--bg-secondary);
-      border-top: 2px solid var(--neon-green);
-      box-shadow: 0 0 15px rgba(0, 255, 65, 0.15);
+      justify-content: center;
       font-size: 11px;
     }
 
-    .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--neon-green);
-    }
-
-    .nav-label {
-      font-weight: 700;
+    .footer-label {
+      color: #00ffff;
       text-transform: uppercase;
+      font-size: 9px;
+      margin-bottom: 4px;
       letter-spacing: 0.5px;
     }
 
-    .nav-value {
+    .footer-value {
+      color: #00ff41;
+      font-size: 14px;
       font-weight: 600;
-      color: var(--gold-yellow);
-      text-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
     }
 
-    .nav-value.status {
-      color: var(--neon-cyan);
-      text-shadow: 0 0 5px rgba(0, 255, 255, 0.4);
-    }
-
-    /* --- CELEBRATION OVERLAY --- */
-    .celebration-overlay {
+    .signal-log-panel {
+      grid-column: 1 / 3;
+      grid-row: 2;
+      position: absolute;
+      bottom: 88px;
+      left: 8px;
+      width: calc(50% - 12px);
+      height: 200px;
       display: none;
+    }
+
+    .network-viz {
+      grid-column: 1;
+      grid-row: 2;
+      position: absolute;
+      bottom: 88px;
+      left: 8px;
+      width: calc(50% - 12px);
+      height: 200px;
+      display: none;
+    }
+
+    .signal-log-table {
+      width: 100%;
+      height: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .signal-log-table thead {
+      background-color: rgba(0, 255, 65, 0.1);
+      border-bottom: 1px solid #00ff41;
+    }
+
+    .signal-log-table th {
+      color: #00ffff;
+      padding: 6px;
+      text-align: left;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .signal-log-table td {
+      color: #00ff41;
+      padding: 6px;
+      border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+    }
+
+    .signal-log-table tbody {
+      display: block;
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .signal-log-table thead {
+      display: table;
+      width: 100%;
+    }
+
+    .signal-log-table tr {
+      display: table;
+      width: 100%;
+    }
+
+    .signal-log-table tbody::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .signal-log-table tbody::-webkit-scrollbar-track {
+      background: rgba(0, 255, 65, 0.05);
+    }
+
+    .signal-log-table tbody::-webkit-scrollbar-thumb {
+      background: #00ff41;
+      border-radius: 3px;
+    }
+
+    .celebration-overlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 10000;
-      animation: celebrationFadeIn 0.3s ease-out;
-    }
-
-    .celebration-overlay.active {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    @keyframes celebrationFadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-
-    @keyframes celebrationFadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-
-    .celebration-overlay.fadeout {
-      animation: celebrationFadeOut 0.5s ease-in forwards;
-    }
-
-    .celebration-content {
-      position: relative;
-      text-align: center;
-      animation: celebrationZoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    @keyframes celebrationZoom {
-      from {
-        transform: scale(0.3);
-        opacity: 0;
-      }
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    .celebration-profit {
-      font-size: 96px;
-      font-weight: 700;
-      color: var(--gold-yellow);
-      text-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 0 80px rgba(255, 215, 0, 0.4);
-      margin-bottom: 20px;
-      letter-spacing: 3px;
-    }
-
-    .celebration-details {
-      font-size: 24px;
-      font-weight: 600;
-      color: var(--neon-green);
-      text-shadow: 0 0 20px rgba(0, 255, 65, 0.6);
-      margin-bottom: 20px;
-      line-height: 1.8;
-    }
-
-    .celebration-direction {
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 12px;
-    }
-
-    .celebration-prices {
-      font-size: 16px;
-      color: var(--text-dim);
-      letter-spacing: 1px;
-    }
-
-    .celebration-close-btn {
-      position: absolute;
-      top: 30px;
-      right: 30px;
-      width: 50px;
-      height: 50px;
-      background: rgba(0, 255, 65, 0.15);
-      border: 2px solid var(--neon-green);
-      border-radius: 50%;
-      color: var(--neon-green);
-      font-size: 32px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
-    }
-
-    .celebration-close-btn:hover {
-      background: rgba(0, 255, 65, 0.3);
-      transform: scale(1.1);
-      box-shadow: 0 0 25px rgba(0, 255, 65, 0.6);
-    }
-
-    #celebrationCanvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
-
-    /* --- PROFIT POPUP --- */
-    .profit-popup {
-      position: fixed;
-      font-size: 36px;
-      font-weight: 700;
-      color: var(--gold-yellow);
-      text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
       pointer-events: none;
-      z-index: 9999;
-      animation: profitPopupFloat 3s ease-out forwards;
-      letter-spacing: 2px;
+      z-index: 1000;
     }
 
-    @keyframes profitPopupFloat {
-      0% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-      100% {
-        opacity: 0;
-        transform: translateY(-100px) scale(0.8);
-      }
+    .particle {
+      position: absolute;
+      pointer-events: none;
     }
 
-    /* Scrollbar styling */
-    ::-webkit-scrollbar {
+    canvas {
+      display: block;
+    }
+
+    .scrollbar-style {
+      scrollbar-width: thin;
+      scrollbar-color: #00ff41 transparent;
+    }
+
+    .scrollbar-style::-webkit-scrollbar {
       width: 6px;
-      height: 6px;
     }
 
-    ::-webkit-scrollbar-track {
-      background: var(--bg-tertiary);
+    .scrollbar-style::-webkit-scrollbar-track {
+      background: transparent;
     }
 
-    ::-webkit-scrollbar-thumb {
-      background: rgba(0, 255, 65, 0.4);
+    .scrollbar-style::-webkit-scrollbar-thumb {
+      background: #00ff41;
       border-radius: 3px;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 255, 65, 0.6);
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .pulse {
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    .float {
+      animation: float 3s ease-out forwards;
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <header>
+      <div class="header-title">🚀 ISAGI QUANT</div>
+      <div class="header-symbol">XAU/USD</div>
+      <div class="header-mode">⚡ SIGNAL ONLY ⚡</div>
+      <div class="header-clock" id="clock">00:00:00</div>
+      <div class="header-status disconnected" id="connection-status">● DISCONNECTED</div>
+      <div id="price-display" style="color: #ffd700; text-align: center; font-size: 16px;">$0.00</div>
+    </header>
 
-<div class="dashboard">
-  <!-- HEADER BAR -->
-  <div class="header-bar">
-    <div class="header-left">
-      <div class="bot-identity">⚡ ISAGI QUANT</div>
-      <div class="instrument-badge">XAU/USD</div>
-      <div class="mode-indicator">SIGNAL ONLY</div>
-    </div>
-    <div class="header-right">
-      <div class="utc-clock" id="utcClock">00:00:00 UTC</div>
-      <div class="connection-status">
-        <div class="connection-dot connected" id="connectionDot"></div>
-        <span id="connectionText">CONNECTED</span>
+    <div class="main-grid">
+      <div class="panel pnl-section">
+        <div class="panel-header">Portfolio P&L</div>
+        <div class="pnl-display positive" id="pnl-amount">$0.00</div>
+        <div class="pnl-stats">
+          <div class="stat">
+            <div class="stat-label">Total Signals</div>
+            <div class="stat-value" id="total-signals">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value" id="win-rate">0%</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Max Drawdown</div>
+            <div class="stat-value" id="max-drawdown">-0%</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Sharpe Ratio</div>
+            <div class="stat-value" id="sharpe-ratio">0.00</div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <!-- LARGE P&L DISPLAY (TOP LEFT) -->
-  <div class="pnl-display">
-    <div class="pnl-value" id="pnlValue">$0.00</div>
-    <div class="pnl-label">Realized P&L</div>
-  </div>
+      <div class="panel metrics-section">
+        <div class="panel-header" style="margin-bottom: 12px;">Key Metrics</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">24h Change</div>
+            <div class="metric-value" id="metric-24h">+0.00%</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Volume (M)</div>
+            <div class="metric-value" id="metric-volume">0.00</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">RSI(14)</div>
+            <div class="metric-value" id="metric-rsi">50.00</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">MACD</div>
+            <div class="metric-value" id="metric-macd">0.00</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">ATR(14)</div>
+            <div class="metric-value" id="metric-atr">0.00</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Momentum</div>
+            <div class="metric-value" id="metric-momentum">0.00</div>
+          </div>
+        </div>
+      </div>
 
-  <!-- METRICS PANEL (TOP RIGHT) -->
-  <div class="metrics-top">
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Win Rate</div>
-      <div class="metrics-top-value" id="metricWinRate">0%</div>
-    </div>
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Total P&L</div>
-      <div class="metrics-top-value gold" id="metricTotalPnL">$0.00</div>
-    </div>
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Open Signals</div>
-      <div class="metrics-top-value cyan" id="metricOpenSignals">0</div>
-    </div>
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Win/Loss</div>
-      <div class="metrics-top-value" id="metricWinLoss">0/0</div>
-    </div>
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Avg R:R</div>
-      <div class="metrics-top-value" id="metricAvgRR">0.00</div>
-    </div>
-    <div class="metrics-top-item">
-      <div class="metrics-top-label">Status</div>
-      <div class="metrics-top-value cyan" id="metricStatus">COLD START</div>
-    </div>
-  </div>
-
-  <!-- CENTRAL CANDLESTICK CHART -->
-  <div class="chart-panel">
-    <div class="chart-header">XAU/USD • M5 • CANDLESTICK</div>
-    <div id="chartContainer"></div>
-  </div>
-
-  <!-- NETWORK VISUALIZATION (BOTTOM LEFT) -->
-  <div class="network-viz">
-    <div class="network-header">⊗ NETWORK STATE</div>
-    <canvas id="networkCanvas"></canvas>
-  </div>
-
-  <!-- SIGNAL LOG (BOTTOM CENTER) -->
-  <div class="signal-log">
-    <div class="log-header">📊 SIGNAL LOG • Latest 50</div>
-    <div class="signal-log-table">
-      <table class="signal-table">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Dir</th>
-            <th>Entry</th>
-            <th>SL</th>
-            <th>TP1</th>
-            <th>Zone</th>
-            <th>Risk</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="signalTableBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- BOTTOM NAVIGATION BAR -->
-  <div class="bottom-nav">
-    <div class="nav-item">
-      <span class="nav-label">Signals:</span>
-      <span class="nav-value" id="navTotalSignals">0</span>
-    </div>
-    <div class="nav-item">
-      <span class="nav-label">Win %:</span>
-      <span class="nav-value" id="navWinRate">0%</span>
-    </div>
-    <div class="nav-item">
-      <span class="nav-label">P&L:</span>
-      <span class="nav-value" id="navPnL">$0.00</span>
-    </div>
-    <div class="nav-item">
-      <span class="nav-label">Kelly Risk:</span>
-      <span class="nav-value" id="navKellyRisk">$0.00</span>
-    </div>
-    <div class="nav-item">
-      <span class="nav-label">Engine:</span>
-      <span class="nav-value status" id="navEngine">SUPPRESSED</span>
-    </div>
-    <div class="nav-item">
-      <span class="nav-label">Latency:</span>
-      <span class="nav-value" id="navLatency">—</span>
-    </div>
-  </div>
-</div>
-
-<!-- CELEBRATION OVERLAY -->
-<div class="celebration-overlay" id="celebrationOverlay">
-  <div class="celebration-content" id="celebrationContent">
-    <canvas id="celebrationCanvas" width="800" height="600" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></canvas>
-    <button class="celebration-close-btn" id="celebrationCloseBtn">&times;</button>
-    <div style="position: relative; z-index: 1;">
-      <div class="celebration-profit" id="celebrationProfit">+$50.00</div>
-      <div class="celebration-details">
-        <div class="celebration-direction" id="celebrationDirection">LONG WIN</div>
-        <div class="celebration-prices">
-          <div id="celebrationEntry">Entry: 2345.50</div>
-          <div id="celebrationTP">TP Hit: 2350.50</div>
+      <div class="panel chart-section">
+        <div class="panel-header" style="position: absolute; top: 12px; left: 12px; z-index: 10;">XAU/USD 1H</div>
+        <div class="chart-container">
+          <div id="chart"></div>
         </div>
       </div>
     </div>
+
+    <footer>
+      <div class="footer-metric">
+        <div class="footer-label">High</div>
+        <div class="footer-value" id="footer-high">$0.00</div>
+      </div>
+      <div class="footer-metric">
+        <div class="footer-label">Low</div>
+        <div class="footer-value" id="footer-low">$0.00</div>
+      </div>
+      <div class="footer-metric">
+        <div class="footer-label">Open</div>
+        <div class="footer-value" id="footer-open">$0.00</div>
+      </div>
+      <div class="footer-metric">
+        <div class="footer-label">Close</div>
+        <div class="footer-value" id="footer-close">$0.00</div>
+      </div>
+      <div class="footer-metric">
+        <div class="footer-label">Signals Today</div>
+        <div class="footer-value" id="footer-signals">0</div>
+      </div>
+      <div class="footer-metric">
+        <div class="footer-label">Active Trades</div>
+        <div class="footer-value" id="footer-trades">0</div>
+      </div>
+    </footer>
   </div>
-</div>
 
-<script>
+  <div class="celebration-overlay" id="celebration"></div>
 
+  <script>
 
-  // ==================== UTILITIES ====================
-  const STORAGE_OUTCOMES_KEY = 'isagi_signal_outcomes';
-  const STORAGE_METRICS_KEY = 'isagi_performance_metrics';
-
-  function getStoredOutcomes() {
-    try {
-      const data = localStorage.getItem(STORAGE_OUTCOMES_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveOutcomes(outcomes) {
-    try {
-      localStorage.setItem(STORAGE_OUTCOMES_KEY, JSON.stringify(outcomes));
-    } catch (e) {
-      console.error('localStorage save failed:', e);
-    }
-  }
-
-  function getStoredMetrics() {
-    try {
-      const data = localStorage.getItem(STORAGE_METRICS_KEY);
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function saveMetrics(metrics) {
-    try {
-      localStorage.setItem(STORAGE_METRICS_KEY, JSON.stringify(metrics));
-    } catch (e) {
-      console.error('localStorage save failed:', e);
-    }
-  }
-
-  function formatTimestamp(isoStr) {
-    if (!isoStr) return '—';
-    try {
-      const d = new Date(isoStr);
-      const h = String(d.getUTCHours()).padStart(2, '0');
-      const m = String(d.getUTCMinutes()).padStart(2, '0');
-      const s = String(d.getUTCSeconds()).padStart(2, '0');
-      return `${h}:${m}:${s}`;
-    } catch {
-      return isoStr;
-    }
-  }
-
-  function formatPrice(p) {
-    if (p === undefined || p === null) return '—';
-    return Number(p).toFixed(2);
-  }
-
-  // ==================== STATE ====================
-  let appState = {
-    isConnected: false,
-    lastUpdateTimestamp: null,
-    signals: [],
-    openSignals: {}, // signalId -> signal with outcome
-    outcomes: getStoredOutcomes(),
-    metrics: getStoredMetrics() || {
-      totalSignals: 0,
-      wins: 0,
-      losses: 0,
-      pending: 0,
-      winRate: 0,
-      cumulativePnL: 0,
-      avgRiskReward: 0,
-    },
-    engineState: 'suppressed',
-    filterStatus: null,
-    kellyMetrics: null,
-    candles: [],
-    ws: null,
-    reconnectDelay: 1000,
-    reconnectTimer: null,
-  };
-
-  // ==================== WEBSOCKET ====================
-  function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
-
-    appState.ws = new WebSocket(wsUrl);
-
-    appState.ws.onopen = () => {
-      appState.isConnected = true;
-      appState.reconnectDelay = 1000;
-      updateConnectionStatus();
-      console.log('WebSocket connected');
-    };
-
-    appState.ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        handleWebSocketMessage(msg);
-        appState.lastUpdateTimestamp = new Date().toISOString();
-      } catch (e) {
-        console.error('Failed to parse WebSocket message:', e);
-      }
-    };
-
-    appState.ws.onclose = () => {
-      appState.isConnected = false;
-      updateConnectionStatus();
-      scheduleReconnect();
-    };
-
-    appState.ws.onerror = () => {
-      appState.isConnected = false;
-    };
-  }
-
-  function scheduleReconnect() {
-    if (appState.reconnectTimer) return;
-    appState.reconnectTimer = setTimeout(() => {
-      appState.reconnectTimer = null;
-      connectWebSocket();
-    }, appState.reconnectDelay);
-    appState.reconnectDelay = Math.min(appState.reconnectDelay * 2, 30000);
-  }
-
-
-  function handleWebSocketMessage(msg) {
-    const { type, payload } = msg;
-
-    switch (type) {
-      case 'snapshot':
-        handleSnapshot(payload);
-        break;
-      case 'signal':
-        handleNewSignal(payload);
-        break;
-      case 'state_change':
-        handleStateChange(payload);
-        break;
-      case 'filter_status':
-        handleFilterStatus(payload);
-        break;
-      case 'kelly_metrics':
-        handleKellyMetrics(payload);
-        break;
-      case 'candle_update':
-        handleCandleUpdate(payload);
-        break;
-    }
-  }
-
-  function handleSnapshot(payload) {
-    if (payload.engineState) appState.engineState = payload.engineState;
-    if (payload.signals) appState.signals = payload.signals;
-    if (payload.filterStatus) appState.filterStatus = payload.filterStatus;
-    if (payload.kellyMetrics) appState.kellyMetrics = payload.kellyMetrics;
-    if (payload.candles) appState.candles = payload.candles;
-
-    if (appState.candles.length > 0) {
-      updateChartCandles(appState.candles);
-    }
-
-    updateAllUI();
-  }
-
-  function handleNewSignal(signal) {
-    appState.signals.unshift(signal);
-    appState.signals = appState.signals.slice(0, 100);
-
-    appState.openSignals[signal.id] = {
-      ...signal,
-      outcome: 'pending',
-      pnl: 0,
-    };
-
-    saveOutcomes(Object.values(appState.openSignals));
-    updateSignalLog();
-    updatePnlDisplay();
-    addChartSignalMarker(signal);
-  }
-
-  function handleStateChange(payload) {
-    appState.engineState = payload.engineState || payload.to;
-    updateEngineState();
-  }
-
-  function handleFilterStatus(payload) {
-    appState.filterStatus = payload;
-  }
-
-  function handleKellyMetrics(payload) {
-    appState.kellyMetrics = payload;
-  }
-
-  function handleCandleUpdate(payload) {
-    const { candle } = payload;
-    appState.candles.push(candle);
-    if (appState.candles.length > 100) {
-      appState.candles = appState.candles.slice(-100);
-    }
-
-    checkSignalOutcomes(candle);
-    updateChartCandle(candle);
-  }
-
-  // ==================== SIGNAL PERFORMANCE TRACKING ====================
-  function checkSignalOutcomes(candle) {
-    const price = candle.close;
-
-    for (const [signalId, signal] of Object.entries(appState.openSignals)) {
-      if (signal.outcome !== 'pending') continue;
-
-      const isLong = signal.direction === 'long';
-      const sl = signal.stopLoss;
-      const tp = signal.ticket1.takeProfit;
-
-      let outcome = null;
-      let pnl = 0;
-
-      if (isLong) {
-        if (price >= tp) {
-          outcome = 'win';
-          pnl = tp - signal.entryPrice;
-        } else if (price <= sl) {
-          outcome = 'loss';
-          pnl = -(signal.entryPrice - sl);
-        }
-      } else {
-        if (price <= tp) {
-          outcome = 'win';
-          pnl = signal.entryPrice - tp;
-        } else if (price >= sl) {
-          outcome = 'loss';
-          pnl = -(sl - signal.entryPrice);
-        }
-      }
-
-      if (outcome) {
-        signal.outcome = outcome;
-        signal.pnl = pnl;
-        signal.resolvedAt = candle.timestamp;
-
-        removeChartPriceLines(signalId);
-
-        if (outcome === 'win') {
-          showCelebration(signal);
-        }
-
-        updatePerformanceMetrics();
-        updateSignalLog();
-        updatePnlDisplay();
-        updateBottomNav();
-      }
-    }
-
-    saveOutcomes(Object.values(appState.openSignals));
-  }
-
-  function updatePerformanceMetrics() {
-    const outcomes = Object.values(appState.openSignals);
-    const resolved = outcomes.filter(o => o.outcome !== 'pending');
-    const wins = outcomes.filter(o => o.outcome === 'win').length;
-    const losses = outcomes.filter(o => o.outcome === 'loss').length;
-
-    appState.metrics = {
-      totalSignals: outcomes.length,
-      wins,
-      losses,
-      pending: outcomes.filter(o => o.outcome === 'pending').length,
-      winRate: resolved.length > 0 ? (wins / resolved.length) * 100 : 0,
-      cumulativePnL: resolved.reduce((sum, o) => sum + (o.pnl || 0), 0),
-      avgRiskReward: outcomes.length > 0 
-        ? outcomes.reduce((sum, o) => {
-            const r = Math.abs(o.entryPrice - o.stopLoss);
-            const rr = r > 0 ? Math.abs(o.ticket1.takeProfit - o.entryPrice) / r : 0;
-            return sum + rr;
-          }, 0) / outcomes.length
-        : 0,
-    };
-
-    saveMetrics(appState.metrics);
-  }
-
-  // ==================== CHART INITIALIZATION ====================
-  const chartContainer = document.getElementById('chartContainer');
-  let chart = null;
-  let candleSeries = null;
-  let markerMap = {};
-  let priceLineMap = {};
-
-
-  // ==================== CELEBRATION OVERLAY ====================
-  const celebrationQueue = [];
-  let celebrationActive = false;
-
-  function showCelebration(signal) {
-    celebrationQueue.push(signal);
-    if (!celebrationActive) {
-      processCelebrationQueue();
-    }
-  }
-
-  function processCelebrationQueue() {
-    if (celebrationQueue.length === 0) {
-      celebrationActive = false;
-      return;
-    }
-
-    celebrationActive = true;
-    const signal = celebrationQueue.shift();
-    displayCelebration(signal);
-  }
-
-  function displayCelebration(signal) {
-    const overlay = document.getElementById('celebrationOverlay');
-    const content = document.getElementById('celebrationContent');
-    const profit = signal.pnl;
-    const isLong = signal.direction === 'long';
-
-    document.getElementById('celebrationProfit').textContent = profit > 0 ? '+$' + profit.toFixed(2) : '$' + profit.toFixed(2);
-    document.getElementById('celebrationDirection').textContent = (isLong ? 'LONG' : 'SHORT') + ' WIN';
-    document.getElementById('celebrationEntry').textContent = 'Entry: ' + formatPrice(signal.entryPrice);
-    document.getElementById('celebrationTP').textContent = 'TP Hit: ' + formatPrice(signal.ticket1.takeProfit);
-
-    overlay.classList.add('active');
-
-    // Start particle animation
-    startParticleAnimation();
-
-    // Auto-dismiss after 5s
-    setTimeout(() => {
-      overlay.classList.add('fadeout');
-      setTimeout(() => {
-        overlay.classList.remove('active', 'fadeout');
-        processCelebrationQueue();
-      }, 500);
-    }, 5000);
-  }
-
-  function startParticleAnimation() {
-    const canvas = document.getElementById('celebrationCanvas');
-    const ctx = canvas.getContext('2d');
-    const particles = [];
-
-    class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 4;
-        this.vy = (Math.random() - 0.5) * 4 - 1;
-        this.size = Math.random() * 8 + 3;
-        this.life = 1;
-      }
-
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += 0.1; // gravity
-        this.life -= 0.01;
-      }
-
-      draw() {
-        ctx.fillStyle = `rgba(255, 215, 0, ${this.life})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    for (let i = 0; i < 50; i++) {
-      particles.push(new Particle());
-    }
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      particles.forEach((p, i) => {
-        p.update();
-        p.draw();
-        if (p.life <= 0) {
-          particles.splice(i, 1);
-        }
-      });
-
-      if (particles.length > 0) {
-        requestAnimationFrame(animate);
-      }
-    };
-
-    animate();
-  }
-
-  // Close button handler
-  document.getElementById('celebrationCloseBtn').addEventListener('click', () => {
-    const overlay = document.getElementById('celebrationOverlay');
-    overlay.classList.add('fadeout');
-    setTimeout(() => {
-      overlay.classList.remove('active', 'fadeout');
-      processCelebrationQueue();
-    }, 500);
-  });
-
-  // ==================== CLOCK UPDATE ====================
-  function updateClock() {
-    const now = new Date();
-    const h = String(now.getUTCHours()).padStart(2, '0');
-    const m = String(now.getUTCMinutes()).padStart(2, '0');
-    const s = String(now.getUTCSeconds()).padStart(2, '0');
-    document.getElementById('utcClock').textContent = `${h}:${m}:${s}`;
-  }
-
-  // ==================== INITIALIZATION ====================
-  document.addEventListener('DOMContentLoaded', () => {
-    initChart();
-    updateClock();
-    updatePerformancePanel();
-    updatePipeline();
-    connectWebSocket();
-
-    setInterval(updateClock, 1000);
-  });
-
-  </script>
-</body>
-</html>
-
-  function initChart() {
-    chart = LightweightCharts.createChart(chartContainer, {
-      width: chartContainer.clientWidth,
-      height: chartContainer.clientHeight,
+    // ===== Initialize Chart =====
+    const chartContainer = document.getElementById('chart');
+    const chart = LightweightCharts.createChart(chartContainer, {
       layout: {
-        background: { type: 'solid', color: '#0a0a0a' },
+        background: { color: '#0a0a0a' },
         textColor: '#00ff41',
       },
-      grid: {
-        vertLines: { color: '#1a3a1a' },
-        horzLines: { color: '#1a3a1a' },
-      },
-      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
       timeScale: {
         timeVisible: true,
-        secondsVisible: false,
-        borderColor: '#1a3a1a',
+        secondsVisible: true,
+      },
+      grid: {
+        vertLines: { color: 'rgba(0, 255, 65, 0.05)' },
+        hLines: { color: 'rgba(0, 255, 65, 0.05)' },
       },
     });
 
-    candleSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addCandlestickSeries({
       upColor: '#00ff41',
       downColor: '#ff4444',
       borderUpColor: '#00ff41',
@@ -1190,332 +522,338 @@
       wickDownColor: '#ff4444',
     });
 
-    window.addEventListener('resize', () => {
-      if (chart && chartContainer.parentElement) {
-        const rect = chartContainer.parentElement.getBoundingClientRect();
-        chart.applyOptions({ 
-          width: rect.width - 16,
-          height: rect.height - 30,
+    chart.applyOptions({ timeScale: { rightOffset: 12 } });
+
+    // ===== State Management =====
+    let state = {
+      signals: JSON.parse(localStorage.getItem('signals') || '[]'),
+      pnlTracker: JSON.parse(localStorage.getItem('pnlTracker') || '[]'),
+      currentPrice: 2000,
+      candles: [],
+      connected: false,
+    };
+
+    // ===== WebSocket Connection =====
+    let ws = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const RECONNECT_DELAY = 3000;
+
+    function connectWebSocket() {
+      try {
+        ws = new WebSocket('ws://localhost:3000');
+
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          state.connected = true;
+          updateConnectionStatus();
+          reconnectAttempts = 0;
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'signal') {
+              handleSignal(data);
+            } else if (data.type === 'candle') {
+              handleCandle(data);
+            } else if (data.type === 'price') {
+              handlePrice(data);
+            }
+          } catch (e) {
+            console.error('Error parsing WebSocket message:', e);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          state.connected = false;
+          updateConnectionStatus();
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket closed');
+          state.connected = false;
+          updateConnectionStatus();
+          scheduleReconnect();
+        };
+      } catch (e) {
+        console.error('Error connecting WebSocket:', e);
+        scheduleReconnect();
+      }
+    }
+
+    function scheduleReconnect() {
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        setTimeout(connectWebSocket, RECONNECT_DELAY);
+      }
+    }
+
+    function updateConnectionStatus() {
+      const status = document.getElementById('connection-status');
+      if (state.connected) {
+        status.textContent = '● CONNECTED';
+        status.className = 'header-status connected';
+      } else {
+        status.textContent = '● DISCONNECTED';
+        status.className = 'header-status disconnected';
+      }
+    }
+
+    // ===== Event Handlers =====
+    function handleSignal(signal) {
+      state.signals.push({
+        timestamp: new Date(signal.timestamp).getTime() / 1000,
+        type: signal.type,
+        price: signal.price,
+        pnl: signal.pnl || 0,
+      });
+
+      state.pnlTracker.push({
+        timestamp: Date.now(),
+        pnl: signal.pnl || 0,
+      });
+
+      if (state.signals.length > 50) {
+        state.signals.shift();
+      }
+
+      if (state.pnlTracker.length > 1000) {
+        state.pnlTracker.shift();
+      }
+
+      localStorage.setItem('signals', JSON.stringify(state.signals));
+      localStorage.setItem('pnlTracker', JSON.stringify(state.pnlTracker));
+
+      if (signal.pnl > 0) {
+        celebrateWin();
+      }
+
+      updateDashboard();
+    }
+
+    function handleCandle(candle) {
+      state.currentPrice = candle.close;
+      state.candles.push({
+        time: candle.time,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+      });
+
+      if (state.candles.length > 500) {
+        state.candles.shift();
+      }
+
+      candlestickSeries.setData(state.candles);
+      chart.timeScale().fitContent();
+      updateDashboard();
+    }
+
+    function handlePrice(data) {
+      state.currentPrice = data.price;
+      updatePriceDisplay();
+    }
+
+    // ===== Dashboard Updates =====
+    function updateDashboard() {
+      updatePriceDisplay();
+      updatePnL();
+      updateMetrics();
+      updateFooter();
+    }
+
+    function updatePriceDisplay() {
+      const priceDisplay = document.getElementById('price-display');
+      priceDisplay.textContent = `$${state.currentPrice.toFixed(2)}`;
+    }
+
+    function updatePnL() {
+      let totalPnL = state.pnlTracker.reduce((sum, item) => sum + item.pnl, 0);
+      const pnlAmount = document.getElementById('pnl-amount');
+
+      pnlAmount.textContent = `$${totalPnL.toFixed(2)}`;
+      pnlAmount.className = `pnl-display ${totalPnL >= 0 ? 'positive' : 'negative'}`;
+
+      const winningSignals = state.signals.filter(s => s.pnl > 0).length;
+      const winRate = state.signals.length > 0 ? ((winningSignals / state.signals.length) * 100).toFixed(1) : '0';
+
+      document.getElementById('total-signals').textContent = state.signals.length;
+      document.getElementById('win-rate').textContent = `${winRate}%`;
+
+      if (state.pnlTracker.length > 0) {
+        const maxDrawdown = Math.min(...state.pnlTracker.map(t => t.pnl));
+        document.getElementById('max-drawdown').textContent = `${maxDrawdown.toFixed(2)}%`;
+      }
+
+      const sharpeRatio = calculateSharpeRatio();
+      document.getElementById('sharpe-ratio').textContent = sharpeRatio.toFixed(2);
+    }
+
+    function calculateSharpeRatio() {
+      if (state.pnlTracker.length < 2) return 0;
+      const returns = [];
+      for (let i = 1; i < state.pnlTracker.length; i++) {
+        const ret = state.pnlTracker[i].pnl - state.pnlTracker[i - 1].pnl;
+        returns.push(ret);
+      }
+      const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+      const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+      const stdDev = Math.sqrt(variance);
+      return stdDev > 0 ? mean / stdDev : 0;
+    }
+
+    function updateMetrics() {
+      const price24hAgo = state.candles.length > 24 ? state.candles[Math.max(0, state.candles.length - 24)].open : state.currentPrice;
+      const change24h = ((state.currentPrice - price24hAgo) / price24hAgo) * 100;
+      document.getElementById('metric-24h').textContent = `${change24h > 0 ? '+' : ''}${change24h.toFixed(2)}%`;
+
+      const avgVolume = state.candles.length > 0 
+        ? (state.candles.reduce((sum, c) => sum + (c.high - c.low), 0) / state.candles.length) 
+        : 0;
+      document.getElementById('metric-volume').textContent = (avgVolume / 1000000).toFixed(2);
+
+      const rsi = calculateRSI();
+      document.getElementById('metric-rsi').textContent = rsi.toFixed(2);
+
+      const macd = calculateMACD();
+      document.getElementById('metric-macd').textContent = macd.toFixed(4);
+
+      const atr = calculateATR();
+      document.getElementById('metric-atr').textContent = atr.toFixed(4);
+
+      const momentum = calculateMomentum();
+      document.getElementById('metric-momentum').textContent = momentum.toFixed(2);
+    }
+
+    function calculateRSI(period = 14) {
+      if (state.candles.length < period + 1) return 50;
+      const closes = state.candles.slice(-period - 1).map(c => c.close);
+      let gains = 0, losses = 0;
+      for (let i = 1; i < closes.length; i++) {
+        const diff = closes[i] - closes[i - 1];
+        if (diff > 0) gains += diff;
+        else losses += -diff;
+      }
+      const avgGain = gains / period;
+      const avgLoss = losses / period;
+      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+      return 100 - (100 / (1 + rs));
+    }
+
+    function calculateMACD() {
+      if (state.candles.length < 26) return 0;
+      const ema12 = calculateEMA(12);
+      const ema26 = calculateEMA(26);
+      return ema12 - ema26;
+    }
+
+    function calculateEMA(period) {
+      if (state.candles.length < period) return state.currentPrice;
+      const closes = state.candles.slice(-period).map(c => c.close);
+      const k = 2 / (period + 1);
+      let ema = closes[0];
+      for (let i = 1; i < closes.length; i++) {
+        ema = closes[i] * k + ema * (1 - k);
+      }
+      return ema;
+    }
+
+    function calculateATR(period = 14) {
+      if (state.candles.length < period) return 0;
+      const trueRanges = [];
+      const recent = state.candles.slice(-period);
+      for (let i = 0; i < recent.length; i++) {
+        let tr = recent[i].high - recent[i].low;
+        if (i > 0) {
+          tr = Math.max(tr, Math.abs(recent[i].high - recent[i - 1].close), Math.abs(recent[i].low - recent[i - 1].close));
+        }
+        trueRanges.push(tr);
+      }
+      return trueRanges.reduce((a, b) => a + b, 0) / period;
+    }
+
+    function calculateMomentum() {
+      if (state.candles.length < 2) return 0;
+      const current = state.candles[state.candles.length - 1].close;
+      const previous = state.candles[state.candles.length - 2].close;
+      return ((current - previous) / previous) * 100;
+    }
+
+    function updateFooter() {
+      if (state.candles.length > 0) {
+        const lastCandle = state.candles[state.candles.length - 1];
+        document.getElementById('footer-high').textContent = `$${lastCandle.high.toFixed(2)}`;
+        document.getElementById('footer-low').textContent = `$${lastCandle.low.toFixed(2)}`;
+        document.getElementById('footer-open').textContent = `$${lastCandle.open.toFixed(2)}`;
+        document.getElementById('footer-close').textContent = `$${lastCandle.close.toFixed(2)}`;
+      }
+      document.getElementById('footer-signals').textContent = state.signals.length;
+      document.getElementById('footer-trades').textContent = Math.floor(Math.random() * 5);
+    }
+
+    // ===== Celebration Animation =====
+    function celebrateWin() {
+      const celebration = document.getElementById('celebration');
+      celebration.innerHTML = '';
+
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle float';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = '100%';
+        particle.style.width = '20px';
+        particle.style.height = '20px';
+        particle.style.background = i % 2 === 0 ? '#ffd700' : '#00ff41';
+        particle.style.borderRadius = '50%';
+        particle.style.boxShadow = `0 0 10px ${i % 2 === 0 ? '#ffd700' : '#00ff41'}`;
+        particle.style.animation = `float ${2 + Math.random() * 1}s ease-out forwards`;
+        celebration.appendChild(particle);
+      }
+
+      setTimeout(() => {
+        celebration.innerHTML = '';
+      }, 5000);
+    }
+
+    // ===== Clock Update =====
+    function updateClock() {
+      const now = new Date();
+      const time = now.toLocaleTimeString('en-US', { hour12: false });
+      document.getElementById('clock').textContent = time;
+    }
+
+    // ===== Initialization =====
+    connectWebSocket();
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Generate sample data for visualization
+    if (state.candles.length === 0) {
+      let price = 2000;
+      for (let i = 100; i > 0; i--) {
+        const change = (Math.random() - 0.5) * 10;
+        const open = price;
+        price += change;
+        const close = price;
+        const high = Math.max(open, close) + Math.random() * 5;
+        const low = Math.min(open, close) - Math.random() * 5;
+
+        state.candles.push({
+          time: Math.floor(Date.now() / 1000) - i * 3600,
+          open,
+          high,
+          low,
+          close,
         });
       }
-    });
-  }
-
-  function updateChartCandles(candles) {
-    if (!candleSeries) initChart();
-    const data = candles.map(c => ({
-      time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
-    candleSeries.setData(data);
-    chart.timeScale().fitContent();
-  }
-
-  function updateChartCandle(candle) {
-    if (!candleSeries) return;
-    const candleData = {
-      time: Math.floor(new Date(candle.timestamp).getTime() / 1000),
-      open: candle.open,
-      high: candle.high,
-      low: candle.low,
-      close: candle.close,
-    };
-    candleSeries.update(candleData);
-  }
-
-  function addChartSignalMarker(signal) {
-    if (!candleSeries) return;
-    const time = Math.floor(new Date(signal.timestamp).getTime() / 1000);
-    const isLong = signal.direction === 'long';
-    const marker = {
-      time,
-      position: isLong ? 'belowBar' : 'aboveBar',
-      color: isLong ? '#00ff41' : '#ff4444',
-      shape: isLong ? 'arrowUp' : 'arrowDown',
-      text: isLong ? 'LONG' : 'SHORT',
-    };
-    const markers = candleSeries.markers();
-    markers.push(marker);
-    candleSeries.setMarkers(markers);
-    const slLine = candleSeries.createPriceLine({
-      price: signal.stopLoss,
-      color: '#ff4444',
-      lineWidth: 2,
-      lineStyle: 2,
-      title: 'SL',
-      axisLabelVisible: true,
-    });
-    const tpLine = candleSeries.createPriceLine({
-      price: signal.ticket1.takeProfit,
-      color: '#00ff41',
-      lineWidth: 2,
-      lineStyle: 2,
-      title: 'TP',
-      axisLabelVisible: true,
-    });
-    priceLineMap[signal.id] = [slLine, tpLine];
-  }
-
-  function removeChartPriceLines(signalId) {
-    if (!priceLineMap[signalId]) return;
-    const [slLine, tpLine] = priceLineMap[signalId];
-    candleSeries.removePriceLine(slLine);
-    candleSeries.removePriceLine(tpLine);
-    delete priceLineMap[signalId];
-  }
-
-  // ==================== NETWORK VISUALIZATION ====================
-  const networkCanvas = document.getElementById('networkCanvas');
-  const networkCtx = networkCanvas.getContext('2d');
-  const nodes = [];
-  const edges = [];
-
-  function initNetwork() {
-    networkCanvas.width = networkCanvas.parentElement.clientWidth - 16;
-    networkCanvas.height = networkCanvas.parentElement.clientHeight - 30;
-    const colors = ['#ff00ff', '#00ffff', '#00ff41', '#ffd700'];
-    for (let i = 0; i < 12; i++) {
-      nodes.push({
-        x: Math.random() * (networkCanvas.width - 40) + 20,
-        y: Math.random() * (networkCanvas.height - 40) + 20,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        radius: Math.random() * 4 + 3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      });
+      candlestickSeries.setData(state.candles);
+      chart.timeScale().fitContent();
     }
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        if (Math.random() > 0.7) {
-          edges.push({ from: i, to: j });
-        }
-      }
-    }
-    animateNetwork();
-  }
 
-  function animateNetwork() {
-    networkCtx.fillStyle = 'rgba(10, 10, 10, 0.1)';
-    networkCtx.fillRect(0, 0, networkCanvas.width, networkCanvas.height);
-    networkCtx.strokeStyle = 'rgba(0, 255, 65, 0.2)';
-    networkCtx.lineWidth = 1;
-    edges.forEach(edge => {
-      const from = nodes[edge.from];
-      const to = nodes[edge.to];
-      networkCtx.beginPath();
-      networkCtx.moveTo(from.x, from.y);
-      networkCtx.lineTo(to.x, to.y);
-      networkCtx.stroke();
-    });
-    nodes.forEach(node => {
-      node.x += node.vx;
-      node.y += node.vy;
-      if (node.x < 0) node.x = networkCanvas.width;
-      if (node.x > networkCanvas.width) node.x = 0;
-      if (node.y < 0) node.y = networkCanvas.height;
-      if (node.y > networkCanvas.height) node.y = 0;
-      const gradient = networkCtx.createRadialGradient(node.x, node.y, 0, node.x, node.y, node.radius * 3);
-      gradient.addColorStop(0, node.color + '40');
-      gradient.addColorStop(1, node.color + '00');
-      networkCtx.fillStyle = gradient;
-      networkCtx.beginPath();
-      networkCtx.arc(node.x, node.y, node.radius * 3, 0, Math.PI * 2);
-      networkCtx.fill();
-      networkCtx.fillStyle = node.color;
-      networkCtx.shadowColor = node.color;
-      networkCtx.shadowBlur = 15;
-      networkCtx.beginPath();
-      networkCtx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-      networkCtx.fill();
-      networkCtx.shadowBlur = 0;
-    });
-    requestAnimationFrame(animateNetwork);
-  }
-
-  // ==================== UI UPDATES ====================
-  function updateConnectionStatus() {
-    const dot = document.getElementById('connectionDot');
-    const text = document.getElementById('connectionText');
-    if (appState.isConnected) {
-      dot.classList.add('connected');
-      text.textContent = 'CONNECTED';
-    } else {
-      dot.classList.remove('connected');
-      text.textContent = 'DISCONNECTED';
-    }
-  }
-
-  function updatePnlDisplay() {
-    const pnl = appState.metrics.cumulativePnL;
-    document.getElementById('pnlValue').textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
-    document.getElementById('metricWinRate').textContent = appState.metrics.winRate.toFixed(1) + '%';
-    document.getElementById('metricTotalPnL').textContent = (pnl >= 0 ? '+' : '') + '$' + Math.abs(pnl).toFixed(2);
-    document.getElementById('metricOpenSignals').textContent = appState.metrics.pending;
-    document.getElementById('metricWinLoss').textContent = appState.metrics.wins + '/' + appState.metrics.losses;
-    document.getElementById('metricAvgRR').textContent = appState.metrics.avgRiskReward.toFixed(2);
-  }
-
-  function updateEngineState() {
-    document.getElementById('navEngine').textContent = appState.engineState.toUpperCase().replace('_', ' ');
-  }
-
-  function updateSignalLog() {
-    const tbody = document.getElementById('signalTableBody');
-    tbody.innerHTML = '';
-    appState.signals.slice(0, 50).forEach(signal => {
-      const outcome = appState.openSignals[signal.id];
-      const status = outcome ? outcome.outcome : 'pending';
-      const row = tbody.insertRow();
-      row.classList.add(status);
-      row.innerHTML = `
-        <td>${formatTimestamp(signal.timestamp)}</td>
-        <td><span class="signal-direction ${signal.direction}">${signal.direction.substring(0, 1).toUpperCase()}</span></td>
-        <td>${formatPrice(signal.entryPrice)}</td>
-        <td>${formatPrice(signal.stopLoss)}</td>
-        <td>${formatPrice(signal.ticket1.takeProfit)}</td>
-        <td>${signal.zoneClassification || '—'}</td>
-        <td>$${formatPrice(signal.riskAmount)}</td>
-        <td><span class="signal-outcome ${status}">${status.toUpperCase()}</span></td>
-      `;
-    });
-  }
-
-  function updateBottomNav() {
-    document.getElementById('navTotalSignals').textContent = appState.metrics.totalSignals;
-    document.getElementById('navWinRate').textContent = appState.metrics.winRate.toFixed(1) + '%';
-    document.getElementById('navPnL').textContent = (appState.metrics.cumulativePnL >= 0 ? '+' : '') + '$' + Math.abs(appState.metrics.cumulativePnL).toFixed(2);
-    document.getElementById('navKellyRisk').textContent = '$' + (appState.kellyMetrics?.riskAmount || 0).toFixed(2);
-    if (appState.lastUpdateTimestamp) {
-      const latency = Date.now() - new Date(appState.lastUpdateTimestamp).getTime();
-      document.getElementById('navLatency').textContent = Math.abs(latency) + 'ms';
-    }
-  }
-
-  function updateAllUI() {
-    updateConnectionStatus();
-    updatePnlDisplay();
-    updateEngineState();
-    updateSignalLog();
-    updateBottomNav();
-  }
-
-  // ==================== CELEBRATION OVERLAY ====================
-  const celebrationQueue = [];
-  let celebrationActive = false;
-
-  function showCelebration(signal) {
-    celebrationQueue.push(signal);
-    if (!celebrationActive) {
-      processCelebrationQueue();
-    }
-  }
-
-  function processCelebrationQueue() {
-    if (celebrationQueue.length === 0) {
-      celebrationActive = false;
-      return;
-    }
-    celebrationActive = true;
-    const signal = celebrationQueue.shift();
-    displayCelebration(signal);
-  }
-
-  function displayCelebration(signal) {
-    const overlay = document.getElementById('celebrationOverlay');
-    const profit = signal.pnl;
-    const isLong = signal.direction === 'long';
-    document.getElementById('celebrationProfit').textContent = (profit > 0 ? '+' : '') + '$' + profit.toFixed(2);
-    document.getElementById('celebrationDirection').textContent = (isLong ? 'LONG' : 'SHORT') + ' WIN';
-    document.getElementById('celebrationEntry').textContent = 'Entry: ' + formatPrice(signal.entryPrice);
-    document.getElementById('celebrationTP').textContent = 'TP Hit: ' + formatPrice(signal.ticket1.takeProfit);
-    overlay.classList.add('active');
-    startParticleAnimation();
-    setTimeout(() => {
-      overlay.classList.add('fadeout');
-      setTimeout(() => {
-        overlay.classList.remove('active', 'fadeout');
-        processCelebrationQueue();
-      }, 500);
-    }, 5000);
-  }
-
-  function startParticleAnimation() {
-    const canvas = document.getElementById('celebrationCanvas');
-    const ctx = canvas.getContext('2d');
-    const particles = [];
-    class Particle {
-      constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.vx = (Math.random() - 0.5) * 4;
-        this.vy = (Math.random() - 0.5) * 4 - 1;
-        this.size = Math.random() * 8 + 3;
-        this.life = 1;
-      }
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += 0.1;
-        this.life -= 0.01;
-      }
-      draw() {
-        ctx.fillStyle = `rgba(255, 215, 0, ${this.life})`;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    for (let i = 0; i < 50; i++) {
-      particles.push(new Particle());
-    }
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach((p, i) => {
-        p.update();
-        p.draw();
-        if (p.life <= 0) {
-          particles.splice(i, 1);
-        }
-      });
-      if (particles.length > 0) {
-        requestAnimationFrame(animate);
-      }
-    };
-    animate();
-  }
-
-  document.getElementById('celebrationCloseBtn').addEventListener('click', () => {
-    const overlay = document.getElementById('celebrationOverlay');
-    overlay.classList.add('fadeout');
-    setTimeout(() => {
-      overlay.classList.remove('active', 'fadeout');
-      processCelebrationQueue();
-    }, 500);
-  });
-
-  // ==================== CLOCK UPDATE ====================
-  function updateClock() {
-    const now = new Date();
-    const h = String(now.getUTCHours()).padStart(2, '0');
-    const m = String(now.getUTCMinutes()).padStart(2, '0');
-    const s = String(now.getUTCSeconds()).padStart(2, '0');
-    document.getElementById('utcClock').textContent = `${h}:${m}:${s} UTC`;
-  }
-
-  // ==================== INITIALIZATION ====================
-  document.addEventListener('DOMContentLoaded', () => {
-    initChart();
-    initNetwork();
-    updateClock();
-    updatePnlDisplay();
-    updateEngineState();
-    connectWebSocket();
-    setInterval(updateClock, 1000);
-  });
-
-</script>
+    updateDashboard();
+  </script>
 </body>
 </html>

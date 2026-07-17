@@ -17,6 +17,7 @@ import type { EngineState } from '../types/state.js';
 import type { FormattedSignal } from '../types/signal.js';
 import type { FilterStatus } from '../types/filter.js';
 import type { KellyResult } from '../pipeline/kelly-sizer.js';
+import type { Candle } from '../types/candle.js';
 
 // ─── WebSocket Message Types ─────────────────────────────────────────────────
 
@@ -25,7 +26,8 @@ export type WsMessageType =
   | 'signal'
   | 'state_change'
   | 'filter_status'
-  | 'kelly_metrics';
+  | 'kelly_metrics'
+  | 'candle_update';
 
 export interface WsMessage {
   type: WsMessageType;
@@ -33,11 +35,17 @@ export interface WsMessage {
   timestamp: string;
 }
 
+export interface CandleUpdatePayload {
+  candle: Candle;
+  hasGap: boolean;
+}
+
 export interface DashboardSnapshot {
   engineState: EngineState;
   signals: FormattedSignal[];
   filterStatus: FilterStatus;
   kellyMetrics: KellyResult | null;
+  candles: Candle[];
   lastUpdateTimestamp: string;
 }
 
@@ -50,6 +58,7 @@ export interface DashboardServer {
   broadcastStateChange(state: EngineState): void;
   broadcastFilterStatus(status: FilterStatus): void;
   broadcastKellyMetrics(metrics: KellyResult): void;
+  broadcastCandleUpdate(candle: Candle, hasGap?: boolean): void;
   getConnectedClients(): number;
   getSignalHistory(): FormattedSignal[];
 }
@@ -76,6 +85,7 @@ export class DashboardServerImpl implements DashboardServer {
   private filterStatus: FilterStatus = { ...DEFAULT_FILTER_STATUS };
   private kellyMetrics: KellyResult | null = null;
   private lastUpdateTimestamp: string = new Date().toISOString();
+  private candleHistory: Candle[] = [];
 
   constructor(maxSignalHistory: number = 100) {
     this.maxSignalHistory = maxSignalHistory;
@@ -263,6 +273,33 @@ export class DashboardServerImpl implements DashboardServer {
   }
 
   /**
+   * Broadcast a candle update to all connected clients.
+   * Maintains a ring buffer of the last 100 M5 candles.
+   */
+  broadcastCandleUpdate(candle: Candle, hasGap: boolean = false): void {
+    // Add to candle history buffer
+    this.candleHistory.push(candle);
+
+    // Maintain ring buffer: keep only last 100 candles
+    if (this.candleHistory.length > 100) {
+      this.candleHistory = this.candleHistory.slice(-100);
+    }
+
+    this.lastUpdateTimestamp = new Date().toISOString();
+
+    const payload: CandleUpdatePayload = {
+      candle,
+      hasGap,
+    };
+
+    this.broadcast({
+      type: 'candle_update',
+      payload,
+      timestamp: this.lastUpdateTimestamp,
+    });
+  }
+
+  /**
    * Get the number of currently connected WebSocket clients.
    */
   getConnectedClients(): number {
@@ -286,6 +323,7 @@ export class DashboardServerImpl implements DashboardServer {
       signals: [...this.signals],
       filterStatus: { ...this.filterStatus },
       kellyMetrics: this.kellyMetrics,
+      candles: [...this.candleHistory],
       lastUpdateTimestamp: this.lastUpdateTimestamp,
     };
   }

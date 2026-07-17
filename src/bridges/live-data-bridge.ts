@@ -192,17 +192,17 @@ wss.on('connection', (ws) => {
   console.log(`[LiveBridge] Client connected. Total: ${clients.size}`);
 
   // Send current state to new client
-  const statusMsg = JSON.stringify({
-    type: 'status',
-    mode: 'live',
-    source: 'TradingView',
-    lastPrice: lastKnownPrice,
-    bid: lastBid,
-    ask: lastAsk,
-    spread: lastAsk - lastBid,
-    connectedAt: new Date().toISOString(),
-  });
-  ws.send(statusMsg);
+  // const statusMsg = JSON.stringify({
+  //   type: 'status',
+  //   mode: 'live',
+  //   source: 'TradingView',
+  //   lastPrice: lastKnownPrice,
+  //   bid: lastBid,
+  //   ask: lastAsk,
+  //   spread: lastAsk - lastBid,
+  //   connectedAt: new Date().toISOString(),
+  // });
+  // ws.send(statusMsg);
 
   ws.on('close', () => {
     clients.delete(ws);
