@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ISAGI QUANT lightweight-charts XAU/USD Terminal">
   <title>ISAGI QUANT - XAU/USD Trading Terminal | lightweight-charts</title>
+  <script src="https://unpkg.com/lightweight-charts@4.0.0/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     * {
       margin: 0;
@@ -12,8 +14,8 @@
     }
 
     body {
-      font-family: 'Courier New', monospace;
-      background-color: #0a0e27;
+      font-family: 'Courier New', 'Courier', monospace;
+      background-color: #0a0a0a;
       color: #00ff41;
       overflow: hidden;
       height: 100vh;
@@ -21,113 +23,121 @@
 
     .container {
       display: grid;
-      grid-template-rows: 50px 1fr 50px;
+      grid-template-rows: 30px 1fr 30px;
       height: 100vh;
-      gap: 4px;
-      padding: 4px;
+      gap: 0;
+      padding: 0;
     }
 
     header {
-      background: linear-gradient(to right, #1a1f3a, #0a0e27);
+      background-color: #0a0a0a;
       border: 1px solid #00ff41;
+      border-bottom: 2px solid #00ff41;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
-      padding: 0 16px;
-      font-size: 12px;
+      padding: 0 8px;
+      font-size: 11px;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
-    .header-title {
-      font-size: 16px;
-      font-weight: bold;
-      color: #ffd700;
-    }
-
-    .header-info {
+    .header-item {
+      margin-right: 12px;
+      color: #00ff41;
       display: flex;
-      gap: 20px;
-      flex: 1;
-      justify-content: center;
+      align-items: center;
+      gap: 4px;
     }
 
-    .header-status {
-      padding: 4px 8px;
-      border: 1px solid #00ff41;
-      border-radius: 2px;
+    .header-label {
+      color: #00ffff;
+      font-weight: bold;
     }
 
-    .header-status.connected {
-      background: rgba(0, 255, 65, 0.1);
+    .header-value {
       color: #00ff41;
     }
 
-    .header-status.disconnected {
-      background: rgba(255, 0, 0, 0.1);
-      color: #ff0000;
+    .header-value.negative {
+      color: #ff4444;
+    }
+
+    .header-value.positive {
+      color: #00ff41;
+    }
+
+    .header-value.gold {
+      color: #ffd700;
     }
 
     .main-content {
       display: grid;
-      grid-template-columns: 250px 1fr 250px;
-      gap: 4px;
+      grid-template-columns: 200px 1fr 280px;
+      gap: 0;
+      padding: 0;
     }
 
     .panel {
-      background: linear-gradient(135deg, #0f1428 0%, #1a1f3a 100%);
+      background-color: #0a0a0a;
       border: 1px solid #00ff41;
-      padding: 8px;
+      padding: 6px;
       overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .panel::-webkit-scrollbar-track {
+      background: #0a0a0a;
+    }
+
+    .panel::-webkit-scrollbar-thumb {
+      background: #00ff41;
+      border-radius: 3px;
+    }
+
+    .left-panel {
+      border-right: 2px solid #00ff41;
+    }
+
+    .center-panel {
+      border-right: 2px solid #00ff41;
+      position: relative;
+    }
+
+    .right-panel {
+      border-left: 2px solid #00ff41;
+    }
+
+    .chart-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
     }
 
     .panel-title {
       color: #ffd700;
       font-weight: bold;
-      margin-bottom: 8px;
-      font-size: 12px;
+      margin-bottom: 4px;
+      font-size: 10px;
       border-bottom: 1px solid #00ff41;
-      padding-bottom: 4px;
-    }
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      margin: 4px 0;
-      padding: 2px 0;
-    }
-
-    .stat-label {
-      color: #00ffff;
-    }
-
-    .stat-value {
-      color: #00ff41;
-      font-weight: bold;
-    }
-
-    .stat-value.negative {
-      color: #ff4444;
-    }
-
-    .pnl-large {
-      font-size: 24px;
-      font-weight: bold;
-      text-align: center;
-      margin: 8px 0;
-      padding: 8px;
-      border: 1px solid #00ff41;
+      padding-bottom: 2px;
     }
 
     .signal-log {
-      font-size: 10px;
-      max-height: 300px;
+      font-size: 9px;
+      max-height: 100%;
       overflow-y: auto;
     }
 
     .signal-entry {
-      padding: 2px 0;
-      border-bottom: 1px solid rgba(0, 255, 65, 0.2);
-      margin: 2px 0;
+      padding: 1px 2px;
+      border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+      margin: 1px 0;
+      line-height: 1.3;
     }
 
     .signal-buy {
@@ -138,127 +148,452 @@
       color: #ff4444;
     }
 
-    footer {
-      background: linear-gradient(to right, #1a1f3a, #0a0e27);
+    .signal-type {
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin: 2px 0;
+      padding: 1px 0;
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      color: #00ffff;
+    }
+
+    .stat-value {
+      color: #00ff41;
+      font-weight: bold;
+      text-align: right;
+      flex: 1;
+      margin-left: 4px;
+    }
+
+    .stat-value.negative {
+      color: #ff4444;
+    }
+
+    .stat-value.positive {
+      color: #00ff41;
+    }
+
+    .section-divider {
+      border-top: 1px solid #00ff41;
+      margin: 4px 0;
+      padding-top: 2px;
+    }
+
+    .metric-box {
+      background-color: rgba(0, 255, 65, 0.05);
+      border: 1px solid rgba(0, 255, 65, 0.3);
+      padding: 3px;
+      margin: 2px 0;
+      font-size: 9px;
+    }
+
+    .metric-title {
+      color: #ffd700;
+      font-weight: bold;
+      font-size: 9px;
+      margin-bottom: 2px;
+    }
+
+    .mini-chart-row {
+      display: flex;
+      gap: 2px;
+      margin: 2px 0;
+      height: 20px;
+    }
+
+    .mini-bar {
+      flex: 1;
+      background: linear-gradient(to top, #00ff41 0%, #ffd700 50%);
       border: 1px solid #00ff41;
+      border-radius: 1px;
+      position: relative;
+    }
+
+    .mini-bar.down {
+      background: linear-gradient(to top, #ff4444 0%, #ff8888 50%);
+      border-color: #ff4444;
+    }
+
+    footer {
+      background-color: #0a0a0a;
+      border: 1px solid #00ff41;
+      border-top: 2px solid #00ff41;
       display: flex;
       justify-content: space-around;
       align-items: center;
-      padding: 0 16px;
+      padding: 0 8px;
       font-size: 10px;
+      overflow: hidden;
+      white-space: nowrap;
     }
 
     .footer-stat {
       display: flex;
-      gap: 8px;
+      gap: 4px;
+      align-items: center;
     }
 
     .footer-stat-label {
       color: #00ffff;
+      font-weight: bold;
     }
 
     .footer-stat-value {
       color: #00ff41;
       font-weight: bold;
     }
+
+    .footer-stat-value.negative {
+      color: #ff4444;
+    }
+
+    .footer-divider {
+      width: 1px;
+      height: 16px;
+      background-color: #00ff41;
+      margin: 0 4px;
+    }
+
+    .mode-indicator {
+      font-weight: bold;
+      color: #ffd700;
+    }
+
+    .status-ok {
+      color: #00ff41;
+    }
+
+    .status-alert {
+      color: #ff4444;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <div class="header-title">ISAGI XAU/USD</div>
-      <div class="header-info">
-        <div>Price: <span id="price">$0.00</span></div>
-        <div>State: <span id="state">--</span></div>
-        <div>Time: <span id="time">--:--:--</span></div>
+    <!-- HEADER (30px) -->
+    <header id="header">
+      <div class="header-item">
+        <span class="header-label">TICKER:</span>
+        <span class="header-value gold">NEAR-ZERO</span>
       </div>
-      <div class="header-status disconnected" id="status">● DISCONNECTED</div>
+      <div class="header-item">
+        <span class="header-label">MODE:</span>
+        <span class="header-value mode-indicator">24H HARVEST</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">WIN:</span>
+        <span class="header-value" id="header-win">74%</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">DD:</span>
+        <span class="header-value negative" id="header-dd">-4.2%</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">RR:</span>
+        <span class="header-value" id="header-rr">3:1</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">PEL:</span>
+        <span class="header-value positive" id="header-pel">+$11,932</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">TRADES:</span>
+        <span class="header-value" id="header-trades">17</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">AVG EDGE:</span>
+        <span class="header-value positive" id="header-edge">+8c</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">SCAN:</span>
+        <span class="header-value" id="header-scan">1000+/dy</span>
+      </div>
+      <div class="header-item">
+        <span class="header-label">TIME:</span>
+        <span class="header-value" id="header-time">15:50:04</span>
+      </div>
     </header>
 
+    <!-- MAIN CONTENT (3-COLUMN) -->
     <div class="main-content">
-      <!-- LEFT PANEL: STATS -->
-      <div class="panel">
-        <div class="panel-title">PORTFOLIO</div>
-        <div class="pnl-large" id="pnl">$0.00</div>
-        
-        <div class="panel-title" style="margin-top: 12px;">METRICS</div>
-        <div class="stat-row">
-          <span class="stat-label">Total Signals:</span>
-          <span class="stat-value" id="signals-count">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Win Rate:</span>
-          <span class="stat-value" id="win-rate">0%</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Max Drawdown:</span>
-          <span class="stat-value negative" id="drawdown">-0%</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Sharpe Ratio:</span>
-          <span class="stat-value" id="sharpe">0.00</span>
-        </div>
-      </div>
-
-      <!-- CENTER: CHART PLACEHOLDER -->
-      <div class="panel">
-        <div class="panel-title">XAU/USD CHART (1H)</div>
-        <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: #666;">
-          [Chart will load here - WebSocket connected]
-        </div>
-      </div>
-
-      <!-- RIGHT PANEL: SIGNALS -->
-      <div class="panel">
-        <div class="panel-title">RECENT SIGNALS</div>
+      <!-- LEFT PANEL: SIGNAL LOG (200px) -->
+      <div class="panel left-panel">
+        <div class="panel-title">SIGNAL LOG</div>
         <div class="signal-log" id="signal-log">
-          <div class="signal-entry">Waiting for signals...</div>
+          <div class="signal-entry">
+            <span class="signal-type">[SCAN]</span>
+            <span class="signal-buy"> SIGNAL DETECTED</span>
+          </div>
+          <div class="signal-entry">
+            <span class="signal-type">[ENTER]</span>
+            <span class="signal-buy"> BUY @ 2050.32</span>
+          </div>
+          <div class="signal-entry">
+            <span class="signal-type">[LIMIT]</span>
+            <span class="signal-buy"> TP: 2051.50</span>
+          </div>
+          <div class="signal-entry">
+            <span class="signal-type">[ON-CHAIN]</span>
+            <span class="signal-buy"> VOL +12%</span>
+          </div>
+          <div class="signal-entry">
+            <span class="signal-type">[WHALE]</span>
+            <span class="signal-sell"> SELL DETECTED</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER PANEL: CHART (1fr) -->
+      <div class="panel center-panel">
+        <div class="panel-title">XAU/USD CANDLESTICK - 1H</div>
+        <div class="chart-container" id="chart-container"></div>
+      </div>
+
+      <!-- RIGHT PANEL: METRICS (280px) -->
+      <div class="panel right-panel">
+        <!-- RATES SECTION -->
+        <div>
+          <div class="panel-title">RATES</div>
+          <div class="stat-row">
+            <span class="stat-label">BTC/USD</span>
+            <span class="stat-value">$11.2K</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Vol 24h</span>
+            <span class="stat-value">88%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Volatility</span>
+            <span class="stat-value">+2.3%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Momentum</span>
+            <span class="stat-value positive">+156</span>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- STRATEGY ALLOCATION -->
+        <div>
+          <div class="panel-title">STRATEGY ALLOC</div>
+          <div class="mini-chart-row">
+            <div class="mini-bar" style="height: 100%; background: linear-gradient(to top, #00ff41, #ffd700);">LONG</div>
+            <div class="mini-bar" style="height: 60%; background: linear-gradient(to top, #ffd700, #00ff41);">DCA</div>
+            <div class="mini-bar down" style="height: 40%;">SHORT</div>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">LONG</span>
+            <span class="stat-value">55%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">DCA</span>
+            <span class="stat-value">35%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">SHORT</span>
+            <span class="stat-value negative">10%</span>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- PERFORMANCE -->
+        <div>
+          <div class="panel-title">PERFORMANCE</div>
+          <div class="metric-box">
+            <div style="color: #ffd700; font-weight: bold; font-size: 11px;">+$11,932</div>
+            <div class="stat-row" style="margin-top: 2px;">
+              <span class="stat-label">Win Rate</span>
+              <span class="stat-value">74%</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Profit Fac</span>
+              <span class="stat-value">2.85</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- ASSETS -->
+        <div>
+          <div class="panel-title">ASSETS</div>
+          <div class="stat-row">
+            <span class="stat-label">CRYPTO</span>
+            <span class="stat-value">Active</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">POLITICS</span>
+            <span class="stat-value">Neutral</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">WEATHER</span>
+            <span class="stat-value">Monitor</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">MACRO</span>
+            <span class="stat-value">Update</span>
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- RISK SUPPORT -->
+        <div>
+          <div class="panel-title">RISK SUPPORT</div>
+          <div class="stat-row">
+            <span class="stat-label">Kelly %</span>
+            <span class="stat-value">2.5%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">POS LIMIT</span>
+            <span class="stat-value">$50K</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Max DD</span>
+            <span class="stat-value negative">-$8K</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Stop Loss</span>
+            <span class="stat-value negative">-2%</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Take Profit</span>
+            <span class="stat-value positive">+5%</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <footer>
+    <!-- FOOTER (30px) -->
+    <footer id="footer">
       <div class="footer-stat">
-        <span class="footer-stat-label">24h High:</span>
-        <span class="footer-stat-value" id="high">$0.00</span>
+        <span class="footer-stat-label">TIME</span>
+        <span class="footer-stat-value" id="footer-time">15:50:04</span>
       </div>
+      <div class="footer-divider"></div>
       <div class="footer-stat">
-        <span class="footer-stat-label">24h Low:</span>
-        <span class="footer-stat-value" id="low">$0.00</span>
+        <span class="footer-stat-label">EXPLORER</span>
+        <span class="footer-stat-value" id="footer-explorer">On-Chain</span>
       </div>
+      <div class="footer-divider"></div>
       <div class="footer-stat">
-        <span class="footer-stat-label">Open:</span>
-        <span class="footer-stat-value" id="open">$0.00</span>
+        <span class="footer-stat-label">VELOCITY</span>
+        <span class="footer-stat-value" id="footer-velocity">+45</span>
       </div>
+      <div class="footer-divider"></div>
       <div class="footer-stat">
-        <span class="footer-stat-label">Close:</span>
-        <span class="footer-stat-value" id="close">$0.00</span>
+        <span class="footer-stat-label">EST.VALUE</span>
+        <span class="footer-stat-value" id="footer-value">$2050.85</span>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">HIGH</span>
+        <span class="footer-stat-value" id="footer-high">$2052.10</span>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">LOW</span>
+        <span class="footer-stat-value" id="footer-low">$2048.50</span>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">OPEN</span>
+        <span class="footer-stat-value" id="footer-open">$2049.20</span>
+      </div>
+      <div class="footer-divider"></div>
+      <div class="footer-stat">
+        <span class="footer-stat-label">CLOSE</span>
+        <span class="footer-stat-value" id="footer-close">$2050.85</span>
       </div>
     </footer>
   </div>
 
   <script>
-    // State
-    const state = {
-      connected: false,
-      price: 0,
-      pnl: 0,
-      signals: [],
-      candles: []
-    };
+    // Initialize Lightweight Charts
+    let chart = null;
+    let candlestickSeries = null;
 
-    // WebSocket Connection
-    let ws = null;
+    function initChart() {
+      const container = document.getElementById('chart-container');
+      
+      chart = LightweightCharts.createChart(container, {
+        layout: {
+          textColor: '#00ff41',
+          background: { color: '#0a0a0a' },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: false,
+          fixLeftEdge: true,
+          fixRightEdge: true,
+        },
+        grid: {
+          vertLines: { color: 'rgba(0, 255, 65, 0.1)' },
+          horzLines: { color: 'rgba(0, 255, 65, 0.1)' },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: { color: '#ffd700', width: 1, style: LightweightCharts.LineStyle.Dashed },
+          horzLine: { color: '#ffd700', width: 1, style: LightweightCharts.LineStyle.Dashed },
+        },
+      });
 
+      candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#00ff41',
+        downColor: '#ff4444',
+        borderUpColor: '#00ff41',
+        borderDownColor: '#ff4444',
+        wickUpColor: '#00ff41',
+        wickDownColor: '#ff4444',
+      });
+
+      // Sample data
+      const sampleData = [
+        { time: '2024-01-01', open: 2048.0, high: 2050.5, low: 2047.2, close: 2049.8 },
+        { time: '2024-01-02', open: 2049.8, high: 2052.0, low: 2049.0, close: 2051.5 },
+        { time: '2024-01-03', open: 2051.5, high: 2053.2, low: 2050.0, close: 2052.1 },
+        { time: '2024-01-04', open: 2052.1, high: 2051.9, low: 2048.5, close: 2049.0 },
+        { time: '2024-01-05', open: 2049.0, high: 2050.5, low: 2047.5, close: 2050.2 },
+      ];
+
+      candlestickSeries.setData(sampleData);
+      chart.timeScale().fitContent();
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        const container = document.getElementById('chart-container');
+        if (chart && container) {
+          chart.applyOptions({
+            width: container.clientWidth,
+            height: container.clientHeight,
+          });
+        }
+      });
+    }
+
+    // Update clock
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+      document.getElementById('header-time').textContent = timeStr;
+      document.getElementById('footer-time').textContent = timeStr;
+    }
+
+    // WebSocket connection (optional for live updates)
     function connectWebSocket() {
       try {
-        ws = new WebSocket('ws://localhost:3000');
-
-        ws.onopen = () => {
-          console.log('[Dashboard] Connected to backend');
-          state.connected = true;
-          updateConnectionStatus();
-        };
+        const ws = new WebSocket('ws://localhost:3000');
 
         ws.onmessage = (event) => {
           try {
@@ -271,14 +606,10 @@
 
         ws.onerror = (err) => {
           console.error('[Dashboard] WebSocket error:', err);
-          state.connected = false;
-          updateConnectionStatus();
         };
 
         ws.onclose = () => {
           console.log('[Dashboard] Disconnected');
-          state.connected = false;
-          updateConnectionStatus();
           setTimeout(connectWebSocket, 3000);
         };
       } catch (e) {
@@ -288,79 +619,37 @@
     }
 
     function handleMessage(msg) {
-      if (msg.type === 'snapshot') {
-        // Initial state snapshot
-        console.log('[Dashboard] Received snapshot:', msg.payload);
-      } else if (msg.type === 'signal') {
-        // New signal
-        const signal = msg.payload;
-        state.signals.unshift(signal);
-        if (state.signals.length > 20) state.signals.pop();
-        updateSignalLog();
-      } else if (msg.type === 'candle_update') {
-        // Candle update
+      if (msg.type === 'candle_update' && candlestickSeries && msg.payload.candle) {
         const candle = msg.payload.candle;
-        state.price = candle.close;
-        state.candles.push(candle);
-        if (state.candles.length > 100) state.candles.shift();
-        updateDisplay();
-      } else if (msg.type === 'kelly_metrics') {
-        // Kelly metrics
-        console.log('[Dashboard] Kelly metrics:', msg.payload);
-      } else if (msg.type === 'state_change') {
-        // State change
-        document.getElementById('state').textContent = msg.payload.engineState;
+        const time = Math.floor(new Date(candle.timestamp).getTime() / 1000);
+        candlestickSeries.update({
+          time: time,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+        });
+      } else if (msg.type === 'signal' && msg.payload) {
+        const signal = msg.payload;
+        const direction = signal.direction === 'long' ? 'BUY' : 'SELL';
+        const className = signal.direction === 'long' ? 'signal-buy' : 'signal-sell';
+        const time = new Date(signal.timestamp).toLocaleTimeString('en-US', { hour12: false });
+        
+        const entry = document.createElement('div');
+        entry.className = `signal-entry`;
+        entry.innerHTML = `<span class="signal-type">[${signal.type || 'SIGNAL'}]</span> <span class="${className}">${direction} @ $${signal.entryPrice.toFixed(2)}</span>`;
+        
+        const log = document.getElementById('signal-log');
+        log.insertBefore(entry, log.firstChild);
+        if (log.children.length > 20) log.removeChild(log.lastChild);
       }
-    }
-
-    function updateConnectionStatus() {
-      const status = document.getElementById('status');
-      if (state.connected) {
-        status.textContent = '● CONNECTED';
-        status.className = 'header-status connected';
-      } else {
-        status.textContent = '● DISCONNECTED';
-        status.className = 'header-status disconnected';
-      }
-    }
-
-    function updateDisplay() {
-      document.getElementById('price').textContent = `$${state.price.toFixed(2)}`;
-      
-      // Calculate stats from signals
-      if (state.signals.length > 0) {
-        const wins = state.signals.filter(s => s.pnl > 0).length;
-        const winRate = ((wins / state.signals.length) * 100).toFixed(1);
-        document.getElementById('win-rate').textContent = winRate + '%';
-        document.getElementById('signals-count').textContent = state.signals.length;
-      }
-    }
-
-    function updateSignalLog() {
-      const log = document.getElementById('signal-log');
-      if (state.signals.length === 0) {
-        log.innerHTML = '<div class="signal-entry">No signals yet...</div>';
-        return;
-      }
-
-      log.innerHTML = state.signals.map(s => {
-        const direction = s.direction === 'long' ? 'BUY' : 'SELL';
-        const className = s.direction === 'long' ? 'signal-buy' : 'signal-sell';
-        const time = new Date(s.timestamp).toLocaleTimeString();
-        const pnl = s.pnl ? `$${s.pnl.toFixed(2)}` : 'pending';
-        return `<div class="signal-entry ${className}">${time} ${direction} @ $${s.entryPrice.toFixed(2)} | ${pnl}</div>`;
-      }).join('');
-    }
-
-    function updateClock() {
-      const now = new Date();
-      document.getElementById('time').textContent = now.toLocaleTimeString('en-US', { hour12: false });
     }
 
     // Initialize
-    connectWebSocket();
+    initChart();
     updateClock();
     setInterval(updateClock, 1000);
+    connectWebSocket();
   </script>
 </body>
 </html>
