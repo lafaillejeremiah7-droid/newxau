@@ -31,6 +31,8 @@ export interface SlippageSimulatorConfig {
   minPips: number;
   /** Maximum slippage in pips. Default: 2.5 */
   maxPips: number;
+  /** Price units per pip. XAU/USD uses 0.1; BTC/USD uses 1. */
+  pipSize?: number;
 }
 
 /** Random number generator function type (returns value in [0, 1)) */
@@ -42,8 +44,7 @@ const DEFAULT_CONFIG: SlippageSimulatorConfig = {
   maxPips: 2.5,
 };
 
-/** XAU/USD pip value in price units */
-const PIP_VALUE = 0.1;
+const DEFAULT_PIP_VALUE = 0.1;
 
 /**
  * Creates a SlippageSimulator instance.
@@ -91,7 +92,7 @@ export function createSlippageSimulator(
         cfg.minPips + amountRoll * (cfg.maxPips - cfg.minPips);
 
       // Convert pips to price units (1 pip = 0.1 for XAU/USD)
-      const slippagePrice = slippagePips * PIP_VALUE;
+      const slippagePrice = slippagePips * (cfg.pipSize ?? DEFAULT_PIP_VALUE);
 
       // Direction: always adverse to trade direction
       let adjustedEntry: number;

@@ -5,6 +5,7 @@
  *   import { Candle, Timeframe, EngineState, ... } from './types/index.js';
  */
 
+export type { Instrument } from '../config/instrument.js';
 export type { Timeframe, Candle, CandleBuffer } from './candle.js';
 
 export type {

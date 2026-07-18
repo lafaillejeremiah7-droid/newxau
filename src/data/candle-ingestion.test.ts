@@ -139,18 +139,18 @@ describe('parseIncomingMessage', () => {
 // ─── validateInstrument Tests ────────────────────────────────────────────────
 
 describe('validateInstrument', () => {
-  it('should accept XAUUSD', () => {
+  it('should accept supported instruments', () => {
     expect(validateInstrument('XAUUSD')).toBe(true);
+    expect(validateInstrument('BTCUSD')).toBe(true);
   });
 
-  it('should reject non-XAUUSD instruments', () => {
+  it('should reject unsupported instruments', () => {
     expect(validateInstrument('EURUSD')).toBe(false);
     expect(validateInstrument('GBPUSD')).toBe(false);
     expect(validateInstrument('xauusd')).toBe(false); // case-sensitive
     expect(validateInstrument('XAU/USD')).toBe(false);
     expect(validateInstrument('')).toBe(false);
     expect(validateInstrument('XAGUSD')).toBe(false);
-    expect(validateInstrument('BTCUSD')).toBe(false);
   });
 });
 
@@ -595,7 +595,7 @@ describe('CandleIngestion', () => {
         expect.stringContaining('CRITICAL')
       );
       expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('did not provide XAU/USD data')
+        expect.stringContaining('did not provide XAUUSD data')
       );
       expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('ws://no-gold-source')
@@ -723,5 +723,38 @@ describe('CandleIngestion', () => {
       errorSpy.mockRestore();
       vi.useRealTimers();
     });
+  });
+});
+
+
+describe('CandleIngestion - BTC/USD configuration', () => {
+  it('accepts BTCUSD candles only when configured for BTCUSD', async () => {
+    const eventBus = new EventBus();
+    const ingestion = new CandleIngestion(eventBus);
+    const handler = vi.fn();
+    eventBus.subscribe('candle.close', handler);
+
+    (ingestion as unknown as { config: DataSourceConfig }).config = {
+      wsUrl: 'ws://btc-source',
+      instrument: 'BTCUSD',
+      timeframes: ['M1', 'M5', 'M15', 'H1'],
+      reconnectIntervalMs: 1000,
+    };
+
+    const handleMessage = Object.getPrototypeOf(ingestion).handleMessage.bind(ingestion);
+    handleMessage(JSON.stringify({
+      instrument: 'BTCUSD',
+      timestamp: '2024-01-15T14:05:00.000Z',
+      open: 60_000,
+      high: 60_050,
+      low: 59_950,
+      close: 60_025,
+      volume: 12,
+      timeframe: 'M5',
+    }));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0].candle.instrument).toBe('BTCUSD');
+    await ingestion.disconnect();
   });
 });

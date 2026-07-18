@@ -28,7 +28,7 @@ This plan implements the Isagi Engine — a signal-only XAU/USD trading signal b
     - Create src/config/loader.ts that reads config from environment variables or JSON file
     - Implement startup validation: refuse to start if broker API credentials or trade execution endpoints are found
     - Validate instrument is 'XAUUSD' only
-    - Validate Telegram config (botToken: 8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ, chatId: 7040023207)
+    - Validate Telegram config (botToken: <TELEGRAM_BOT_TOKEN>, chatId: 7040023207)
     - Log critical error and exit if any trade execution configuration detected
     - _Requirements: 15.5, 15.6, 15.7, 16.1_
 
@@ -363,7 +363,7 @@ This plan implements the Isagi Engine — a signal-only XAU/USD trading signal b
   - [x] 14.1 Implement Telegram Notifier with retry logic
     - Create src/output/telegram-notifier.ts implementing TelegramNotifier interface
     - Send formatted signal via Telegram Bot API sendMessage endpoint with HTML formatting
-    - Bot token: 8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ, Chat ID: 7040023207
+    - Bot token: <TELEGRAM_BOT_TOKEN>, Chat ID: 7040023207
     - Include: direction, entry price, SL, TP1, TP2, split details, zone, risk amount, reasoning (≤280 chars)
     - MUST NOT include trade execution commands or order placement instructions
     - Delivery target: within 5 seconds of signal generation
@@ -475,7 +475,7 @@ This plan implements the Isagi Engine — a signal-only XAU/USD trading signal b
 - Property tests validate universal correctness properties using fast-check
 - Unit tests validate specific examples and edge cases
 - The system is SIGNAL-ONLY — no automatic trade placement is ever implemented
-- Telegram Bot Token: 8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ
+- Telegram Bot Token: <TELEGRAM_BOT_TOKEN>
 - Telegram Chat ID: 7040023207
 - All 25 correctness properties from the design document have corresponding test tasks
 - TypeScript with strict mode is used throughout

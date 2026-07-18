@@ -84,6 +84,7 @@ export class SqliteSignalLogger implements SignalLogger {
       CREATE TABLE IF NOT EXISTS signals (
         id TEXT PRIMARY KEY,
         timestamp TEXT NOT NULL,
+        instrument TEXT NOT NULL DEFAULT 'XAUUSD',
         direction TEXT NOT NULL CHECK (direction IN ('long', 'short')),
         entry_price REAL NOT NULL,
         stop_loss REAL NOT NULL,
@@ -134,6 +135,14 @@ export class SqliteSignalLogger implements SignalLogger {
       CREATE INDEX IF NOT EXISTS idx_state_transitions_timestamp ON state_transitions(timestamp);
       CREATE INDEX IF NOT EXISTS idx_filter_events_timestamp ON filter_events(timestamp);
     `);
+
+    // Migrate databases created before multi-instrument logging.
+    const columns = this.db
+      .prepare('PRAGMA table_info(signals)')
+      .all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === 'instrument')) {
+      this.db.exec("ALTER TABLE signals ADD COLUMN instrument TEXT NOT NULL DEFAULT 'XAUUSD'");
+    }
   }
 
   /**
@@ -232,14 +241,15 @@ export class SqliteSignalLogger implements SignalLogger {
         const signal = entry.data as FormattedSignal;
         this.db.prepare(`
           INSERT INTO signals (
-            id, timestamp, direction, entry_price, stop_loss, tp1, tp2,
+            id, timestamp, instrument, direction, entry_price, stop_loss, tp1, tp2,
             zone_classification, risk_amount, r_unit, reasoning,
             slippage_applied, slippage_pips, original_entry,
             ticket1_size_pct, ticket2_size_pct
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           signal.id,
           signal.timestamp,
+          signal.instrument,
           signal.direction,
           signal.entryPrice,
           signal.stopLoss,
@@ -308,16 +318,17 @@ export class SqliteSignalLogger implements SignalLogger {
     this.executeWithRetry(() => {
       this.db.prepare(`
         INSERT INTO signals (
-          id, timestamp, direction, entry_price, stop_loss, tp1, tp2,
+          id, timestamp, instrument, direction, entry_price, stop_loss, tp1, tp2,
           zone_classification, risk_amount, r_unit, reasoning,
           slippage_applied, slippage_pips, original_entry,
           ticket1_size_pct, ticket2_size_pct
         ) VALUES (
-          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
       `).run(
         signal.id,
         signal.timestamp,
+        signal.instrument,
         signal.direction,
         signal.entryPrice,
         signal.stopLoss,

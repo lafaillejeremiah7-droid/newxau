@@ -1,21 +1,21 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║  Isagi Engine - LIVE XAU/USD Data Bridge                    ║
+ * ║  Isagi Engine - LIVE Multi-Instrument Data Bridge             ║
  * ║  Source: TradingView (real-time, no API key needed)         ║
  * ║  WebSocket: ws://localhost:8080                             ║
  * ║  Timeframes: M1, M5, M15, H1                               ║
  * ╚══════════════════════════════════════════════════════════════╝
  *
- * Polls TradingView's free public scanner API every 5 seconds for live
- * XAU/USD price data. Builds M1 candles from ticks, then aggregates
- * into M5, M15, and H1 timeframes. Emits completed candles via WebSocket.
- *
+ * Polls TradingView's free public scanner API every 5 seconds for the configured
+ * instrument. Builds M1 candles from ticks, then aggregates into M5, M15, and H1
+ * timeframes. Emits completed candles via WebSocket. *
  * NO API key required. NO signup. Works immediately.
  *
  * Usage:
  *   npx tsx src/bridges/live-data-bridge.ts
  */
 
+import { getInstrumentMetadata, isSupportedInstrument, type Instrument } from '../config/instrument.js';
 import WebSocket, { WebSocketServer } from 'ws';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -24,10 +24,16 @@ const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT ?? '8080', 10);
 const POLL_INTERVAL_MS = 5_000; // Poll every 5 seconds
 const PRICE_LOG_INTERVAL_MS = 30_000; // Log price every 30 seconds
 
-const TRADINGVIEW_SCANNER_URL = 'https://scanner.tradingview.com/cfd/scan';
+const instrumentValue = process.env.INSTRUMENT ?? 'XAUUSD';
+if (!isSupportedInstrument(instrumentValue)) {
+  throw new Error(`Unsupported INSTRUMENT: ${instrumentValue}`);
+}
+const instrument: Instrument = instrumentValue;
+const instrumentMetadata = getInstrumentMetadata(instrument);
+const TRADINGVIEW_SCANNER_URL = instrumentMetadata.tradingViewScannerUrl;
 
 const TRADINGVIEW_BODY = JSON.stringify({
-  symbols: { tickers: ['OANDA:XAUUSD'], query: { types: [] } },
+  symbols: { tickers: [instrumentMetadata.tradingViewTicker], query: { types: [] } },
   columns: ['close', 'open', 'high', 'low', 'bid', 'ask', 'change', 'change_abs', 'volume'],
 });
 
@@ -36,7 +42,7 @@ const TRADINGVIEW_BODY = JSON.stringify({
 type Timeframe = 'M1' | 'M5' | 'M15' | 'H1';
 
 interface CandleMessage {
-  instrument: 'XAUUSD';
+  instrument: Instrument;
   timestamp: string;
   open: number;
   high: number;
@@ -131,7 +137,7 @@ function processTick(price: number, timestampMs: number, volume: number): Candle
     } else if (currentBoundary !== active.startMs) {
       // Boundary crossed — emit completed candle
       const closedCandle: CandleMessage = {
-        instrument: 'XAUUSD',
+        instrument,
         timestamp: new Date(active.startMs).toISOString(),
         open: active.open,
         high: active.high,
@@ -146,7 +152,7 @@ function processTick(price: number, timestampMs: number, volume: number): Candle
       let nextBoundary = active.startMs + duration;
       while (nextBoundary < currentBoundary) {
         const gapCandle: CandleMessage = {
-          instrument: 'XAUUSD',
+          instrument,
           timestamp: new Date(nextBoundary).toISOString(),
           open: active.close,
           high: active.close,
@@ -329,8 +335,8 @@ async function pollCycle(): Promise<void> {
     if (nowMs - lastPriceLogMs >= PRICE_LOG_INTERVAL_MS) {
       const spread = (priceData.ask - priceData.bid).toFixed(2);
       console.log(
-        `[LiveBridge] XAU/USD $${priceData.close.toFixed(2)} | ` +
-          `Bid: $${priceData.bid.toFixed(2)} Ask: $${priceData.ask.toFixed(2)} | ` +
+        `[LiveBridge] ${instrumentMetadata.displayName} $${priceData.close.toFixed(instrumentMetadata.priceDecimals)} | ` +
+          `Bid: $${priceData.bid.toFixed(instrumentMetadata.priceDecimals)} Ask: $${priceData.ask.toFixed(instrumentMetadata.priceDecimals)} | ` +
           `Spread: $${spread} | Clients: ${clients.size}`
       );
       lastPriceLogMs = nowMs;
@@ -381,7 +387,7 @@ const flushInterval = setInterval(() => {
     const duration = TIMEFRAME_DURATION_MS[tf];
     if (nowMs >= active.startMs + duration) {
       const closedCandle: CandleMessage = {
-        instrument: 'XAUUSD',
+        instrument,
         timestamp: new Date(active.startMs).toISOString(),
         open: active.open,
         high: active.high,
@@ -400,7 +406,7 @@ const flushInterval = setInterval(() => {
 
 console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║  Isagi Engine - LIVE XAU/USD Data Bridge                    ║
+║  Isagi Engine - LIVE ${instrumentMetadata.displayName} Data Bridge           ║
 ║  Source: TradingView (real-time, no API key needed)         ║
 ║  WebSocket: ws://localhost:${String(BRIDGE_PORT).padEnd(4)}                         ║
 ║  Timeframes: M1, M5, M15, H1                               ║
@@ -410,7 +416,7 @@ console.log(`
 
 wss.on('listening', () => {
   console.log(`[LiveBridge] WebSocket server listening on ws://localhost:${BRIDGE_PORT}`);
-  console.log('[LiveBridge] Fetching live XAU/USD data from TradingView...');
+  console.log(`[LiveBridge] Fetching live ${instrumentMetadata.displayName} data from TradingView...`);
   console.log('[LiveBridge] No API key needed. No signup required.');
   console.log('');
 

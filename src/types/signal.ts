@@ -10,6 +10,8 @@ import type { ZoneClassification } from './zone.js';
 export interface RawSignal {
   id: string;
   timestamp: string;
+  /** Instrument is optional for backward-compatible library callers; live FSM signals always set it. */
+  instrument?: 'XAUUSD' | 'BTCUSD';
   direction: 'long' | 'short';
   entryPrice: number;
   liquidityZoneLevel: number;
@@ -29,7 +31,7 @@ export interface RawSignal {
 export interface FormattedSignal {
   id: string;
   timestamp: string;
-  instrument: 'XAUUSD';
+  instrument: 'XAUUSD' | 'BTCUSD';
   direction: 'long' | 'short';
   entryPrice: number;
   stopLoss: number;

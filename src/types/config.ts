@@ -3,12 +3,14 @@
  * Defines the complete configuration schema matching the design specification.
  */
 
+import type { Instrument } from '../config/instrument.js';
+
 /** Complete system configuration */
 export interface SystemConfig {
   /** Data source configuration */
   dataSource: {
     wsUrl: string;
-    instrument: 'XAUUSD';
+    instrument: Instrument;
     reconnectIntervalMs: number;
   };
 

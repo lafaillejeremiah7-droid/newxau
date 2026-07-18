@@ -7,7 +7,7 @@ const TL_ACC_NUM = '2';
 const TL_INSTRUMENT_ID = '1714';
 const TL_ROUTE_ID = '791554';
 
-const BOT_TOKEN = '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = '7040023207';
 
 async function authenticate(): Promise<string> {

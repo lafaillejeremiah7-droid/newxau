@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SystemConfig } from '../types/config.js';
+import { isSupportedInstrument, type Instrument } from './instrument.js';
 
 /**
  * Forbidden environment variable prefixes and exact keys.
@@ -85,14 +86,11 @@ export function detectForbiddenJsonKeys(obj: Record<string, unknown>, parentPath
   return detected;
 }
 
-/**
- * Validates that the instrument is 'XAUUSD'.
- * Throws if any other instrument is configured.
- */
-export function validateInstrument(instrument: string): void {
-  if (instrument !== 'XAUUSD') {
+/** Validates that the configured instrument is supported. */
+export function validateInstrument(instrument: string): asserts instrument is Instrument {
+  if (!isSupportedInstrument(instrument)) {
     throw new Error(
-      `[CRITICAL] Invalid instrument configured: "${instrument}". Only "XAUUSD" is allowed.`,
+      `[CRITICAL] Invalid instrument configured: "${instrument}". Supported instruments are "XAUUSD" and "BTCUSD".`,
     );
   }
 }
@@ -169,8 +167,10 @@ export function loadConfig(
 
   // Step 3: Build configuration with defaults, env vars take precedence
   const wsUrl = env['WS_URL'] ?? 'ws://localhost:8080';
-  const instrument = 'XAUUSD' as const;
-  const botToken = env['TELEGRAM_BOT_TOKEN'] ?? '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ';
+  const instrumentValue = env['INSTRUMENT'] ?? 'XAUUSD';
+  validateInstrument(instrumentValue);
+  const instrument = instrumentValue;
+  const botToken = env['TELEGRAM_BOT_TOKEN'] ?? '';
   const chatId = env['TELEGRAM_CHAT_ID'] ?? '7040023207';
   const dashboardPort = env['DASHBOARD_PORT'] ? parseInt(env['DASHBOARD_PORT'], 10) : 3000;
   const dbPath = env['DB_PATH'] ?? './data/signals.db';

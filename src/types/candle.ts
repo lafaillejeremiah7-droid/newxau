@@ -6,9 +6,9 @@
 /** Supported trading timeframes */
 export type Timeframe = 'M1' | 'M5' | 'M15' | 'H1';
 
-/** A single OHLCV candlestick for XAU/USD */
+/** A single OHLCV candlestick for a supported instrument. */
 export interface Candle {
-  instrument: 'XAUUSD';
+  instrument: 'XAUUSD' | 'BTCUSD';
   timeframe: Timeframe;
   timestamp: string; // ISO 8601 UTC ms precision
   open: number;

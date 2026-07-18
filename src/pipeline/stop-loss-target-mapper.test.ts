@@ -354,3 +354,18 @@ describe('StopLossTargetMapper - calculateTargets', () => {
     });
   });
 });
+
+
+describe('StopLossTargetMapper - instrument price units', () => {
+  it('uses BTC/USD dollar-sized pips instead of XAU/USD 0.1 units', () => {
+    const btcMapper = createStopLossTargetMapper({ pipSize: 1 });
+    const candles = [
+      makeCandle({ instrument: 'BTCUSD', low: 60_000, high: 60_002, volume: 50 }),
+      makeCandle({ instrument: 'BTCUSD', low: 60_002, high: 60_005, volume: 60 }),
+    ];
+
+    const result = btcMapper.findLiquidityPocket(candles, 'up', 100);
+    expect(result).not.toBeNull();
+    expect(result!.width).toBe(5);
+  });
+});

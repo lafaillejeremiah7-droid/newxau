@@ -19,8 +19,7 @@ import type {
   ZoneClassification,
 } from '../types/zone.js';
 
-/** 1 pip in XAU/USD price units */
-const PIP = 0.1;
+const DEFAULT_PIP_SIZE = 0.1;
 
 /** Minimum liquidity pocket width in pips */
 const MIN_POCKET_WIDTH_PIPS = 5;
@@ -67,10 +66,18 @@ export interface StopLossTargetMapper {
   ): TargetLevels;
 }
 
-/**
- * Creates a StopLossTargetMapper instance.
- */
-export function createStopLossTargetMapper(): StopLossTargetMapper {
+/** Configuration for instrument-specific price units. */
+export interface StopLossTargetMapperConfig {
+  /** Price units per strategy pip. XAU/USD uses 0.1; BTC/USD uses 1. */
+  pipSize: number;
+}
+
+/** Creates a StopLossTargetMapper instance. */
+export function createStopLossTargetMapper(
+  config: Partial<StopLossTargetMapperConfig> = {},
+): StopLossTargetMapper {
+  const pipSize = config.pipSize ?? DEFAULT_PIP_SIZE;
+
   return {
     calculateStopLoss(
       signal: RawSignal,
@@ -85,16 +92,16 @@ export function createStopLossTargetMapper(): StopLossTargetMapper {
         const lookbackCandles = recentCandles.slice(-20);
         if (direction === 'high') {
           const highestHigh = Math.max(...lookbackCandles.map((c) => c.high));
-          const buffer = zoneType === 'chop_zone' ? PIP : 2 * PIP;
+          const buffer = zoneType === 'chop_zone' ? pipSize : 2 * pipSize;
           return highestHigh + buffer;
         } else {
           const lowestLow = Math.min(...lookbackCandles.map((c) => c.low));
-          const buffer = zoneType === 'chop_zone' ? PIP : 2 * PIP;
+          const buffer = zoneType === 'chop_zone' ? pipSize : 2 * pipSize;
           return lowestLow - buffer;
         }
       }
 
-      const buffer = zoneType === 'chop_zone' ? PIP : 2 * PIP;
+      const buffer = zoneType === 'chop_zone' ? pipSize : 2 * pipSize;
 
       if (signal.direction === 'short') {
         // SL above the highest wick cluster of swing high
@@ -138,7 +145,7 @@ export function createStopLossTargetMapper(): StopLossTargetMapper {
         if (usedStartIndices.has(i)) continue;
 
         const windowStart = sortedWicks[i];
-        const windowEnd = windowStart + PIP;
+        const windowEnd = windowStart + pipSize;
 
         // Count wicks within the 1-pip range starting from this wick
         let count = 0;
@@ -234,6 +241,7 @@ export function createStopLossTargetMapper(): StopLossTargetMapper {
         overallLow,
         overallHigh,
         direction,
+        pipSize,
       );
     },
 
@@ -316,7 +324,7 @@ export function createStopLossTargetMapper(): StopLossTargetMapper {
               if (pocketEdge > entry) {
                 adjustedTarget = pocketEdge;
               } else {
-                adjustedTarget = firstBlockPrice - PIP;
+                adjustedTarget = firstBlockPrice - pipSize;
               }
             } else {
               // Use the startPrice (lower edge) of pocket, but must be before block
@@ -324,15 +332,15 @@ export function createStopLossTargetMapper(): StopLossTargetMapper {
               if (pocketEdge < entry) {
                 adjustedTarget = pocketEdge;
               } else {
-                adjustedTarget = firstBlockPrice + PIP;
+                adjustedTarget = firstBlockPrice + pipSize;
               }
             }
           } else {
             // No pocket found; place target just before the volume block
             if (isLong) {
-              adjustedTarget = firstBlockPrice - PIP;
+              adjustedTarget = firstBlockPrice - pipSize;
             } else {
-              adjustedTarget = firstBlockPrice + PIP;
+              adjustedTarget = firstBlockPrice + pipSize;
             }
           }
         }
@@ -377,10 +385,11 @@ function findPocketInDirection(
   overallLow: number,
   overallHigh: number,
   direction: 'up' | 'down',
+  pipSize: number,
 ): LiquidityPocket | null {
   if (volumeBlocks.length === 0) {
     // No volume blocks at all: entire price range is an open pocket
-    const widthPips = (overallHigh - overallLow) / PIP;
+    const widthPips = (overallHigh - overallLow) / pipSize;
     if (widthPips >= MIN_POCKET_WIDTH_PIPS) {
       return {
         startPrice: overallLow,
@@ -399,7 +408,7 @@ function findPocketInDirection(
 
   // Check gap below first block
   if (mergedBlocks[0].low > overallLow) {
-    const gapWidthPips = (mergedBlocks[0].low - overallLow) / PIP;
+    const gapWidthPips = (mergedBlocks[0].low - overallLow) / pipSize;
     if (gapWidthPips >= MIN_POCKET_WIDTH_PIPS) {
       pockets.push({
         startPrice: overallLow,
@@ -413,7 +422,7 @@ function findPocketInDirection(
   for (let i = 0; i < mergedBlocks.length - 1; i++) {
     const gapStart = mergedBlocks[i].high;
     const gapEnd = mergedBlocks[i + 1].low;
-    const gapWidthPips = (gapEnd - gapStart) / PIP;
+    const gapWidthPips = (gapEnd - gapStart) / pipSize;
     if (gapWidthPips >= MIN_POCKET_WIDTH_PIPS) {
       pockets.push({
         startPrice: gapStart,
@@ -426,7 +435,7 @@ function findPocketInDirection(
   // Check gap above last block
   const lastBlock = mergedBlocks[mergedBlocks.length - 1];
   if (lastBlock.high < overallHigh) {
-    const gapWidthPips = (overallHigh - lastBlock.high) / PIP;
+    const gapWidthPips = (overallHigh - lastBlock.high) / pipSize;
     if (gapWidthPips >= MIN_POCKET_WIDTH_PIPS) {
       pockets.push({
         startPrice: lastBlock.high,
