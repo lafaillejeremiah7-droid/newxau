@@ -38,6 +38,7 @@ import { TelegramNotifier } from './output/telegram-notifier.js';
 import { createDashboardServer } from './output/dashboard-server.js';
 import { LiquidityZoneDetector } from './core/liquidity-zone-detector.js';
 import { createCandlePatternAnalyzer } from './core/candle-pattern-analyzer.js';
+import { DailySignalTargetTracker } from './monitoring/daily-signal-target.js';
 
 import type { RawSignal } from './core/signal-engine-fsm.js';
 import type { Candle } from './types/candle.js';
@@ -90,7 +91,7 @@ async function main(): Promise<void> {
     signalLogger = new SqliteSignalLogger(
       config.logging.dbPath,
       config.logging.retentionDays,
-      config.logging.maxRetries
+      config.logging.maxRetries,
     );
     console.log('[Isagi Engine] Signal Logger initialized.');
   } catch (err) {
@@ -100,6 +101,13 @@ async function main(): Promise<void> {
 
   // Candle Buffer Manager
   const candleBufferManager = new CandleBufferManager();
+
+  // Soft daily signal target tracker. This observes qualified signals only;
+  // it never creates, suppresses, or changes a signal.
+  const dailySignalTargetTracker = new DailySignalTargetTracker(config.dailySignalTarget);
+  console.log(
+    `[Daily Signal Target] Soft UTC-day target: ${config.dailySignalTarget.minSignalsPerUtcDay}-${config.dailySignalTarget.maxSignalsPerUtcDay} qualified signals.`,
+  );
 
   // Filters
   const timeGate = new TimeGate({
@@ -122,7 +130,7 @@ async function main(): Promise<void> {
     timeGate,
     newsDecoupler,
     circuitBreaker,
-    eventBus
+    eventBus,
   );
 
   // Core Engine Components
@@ -184,7 +192,7 @@ async function main(): Promise<void> {
         status: response.status,
         statusText: response.statusText,
       };
-    }
+    },
   );
 
   // Candle Ingestion
@@ -196,6 +204,16 @@ async function main(): Promise<void> {
   eventBus.subscribe('candle.close', (event) => {
     const candle = event.candle as Candle;
 
+    const rollover = dailySignalTargetTracker.observe(candle.timestamp);
+    if (rollover) {
+      const completed = rollover.completedDay;
+      const completion = completed.minimumMet ? 'minimum met' : 'minimum missed';
+      console.log(
+        `[Daily Signal Target] UTC ${completed.dateKey} complete: ` +
+          `${completed.qualifiedSignals}/${completed.minimum}-${completed.maximum} qualified signals (${completion}).`,
+      );
+    }
+
     // Add to buffer for SMA/volume tracking
     candleBufferManager.addCandle(candle);
 
@@ -206,11 +224,7 @@ async function main(): Promise<void> {
 
     // Process M1 candles through circuit breaker
     if (candle.timeframe === 'M1') {
-      macroFilterModule.processM1Candle(
-        candle,
-        lastSignalDirection,
-        lastSignalId
-      );
+      macroFilterModule.processM1Candle(candle, lastSignalDirection, lastSignalId);
     }
 
     // Forward all candles to FSM (FSM internally filters for M5/H1/M15)
@@ -230,7 +244,8 @@ async function main(): Promise<void> {
       telegramNotifier,
       dashboard,
       signalLogger,
-      eventBus
+      eventBus,
+      dailySignalTargetTracker,
     );
   });
 
@@ -282,7 +297,9 @@ async function main(): Promise<void> {
   if (config.telegram.botToken && config.telegram.chatId) {
     console.log('[Isagi Engine] Telegram Notifier configured.');
   } else {
-    console.warn('[Isagi Engine] WARNING: Telegram not configured. Signals will not be sent to Telegram.');
+    console.warn(
+      '[Isagi Engine] WARNING: Telegram not configured. Signals will not be sent to Telegram.',
+    );
   }
 
   // ─── Step 8: Load News Calendar (best-effort) ──────────────────────────────
@@ -311,6 +328,13 @@ async function main(): Promise<void> {
     isShuttingDown = true;
 
     console.log(`\n[Isagi Engine] Received ${signal}. Shutting down gracefully...`);
+
+    const dailyStatus = dailySignalTargetTracker.getStatus();
+    const dailyCompletion = dailyStatus.minimumMet ? 'minimum met' : 'minimum missed';
+    console.log(
+      `[Daily Signal Target] UTC ${dailyStatus.dateKey}: ` +
+        `${dailyStatus.qualifiedSignals}/${dailyStatus.minimum}-${dailyStatus.maximum} qualified signals (${dailyCompletion}).`,
+    );
 
     try {
       // 1. Disconnect WebSocket
@@ -391,7 +415,8 @@ function processSignalPipeline(
   telegramNotifier: TelegramNotifier,
   dashboard: ReturnType<typeof createDashboardServer>,
   signalLogger: SqliteSignalLogger,
-  eventBus: EventBus
+  eventBus: EventBus,
+  dailySignalTargetTracker: DailySignalTargetTracker,
 ): void {
   // Get recent M5 candles for pipeline calculations
   const recentM5Candles = candleBufferManager.getLatestCandles('M5', 20);
@@ -399,15 +424,10 @@ function processSignalPipeline(
   const lastFiveVolumes = candleBufferManager.getVolumeTrend(5);
 
   // ─── Step 1: Volume Filter ──────────────────────────────────────────────────
-  const currentVolume = recentM5Candles.length > 0
-    ? recentM5Candles[recentM5Candles.length - 1].volume
-    : 0;
+  const currentVolume =
+    recentM5Candles.length > 0 ? recentM5Candles[recentM5Candles.length - 1].volume : 0;
 
-  const volumeResult = volumeFilter.evaluate(
-    currentVolume,
-    sma20Volume,
-    lastFiveVolumes
-  );
+  const volumeResult = volumeFilter.evaluate(currentVolume, sma20Volume, lastFiveVolumes);
 
   if (volumeResult.rejected) {
     // Short-circuit: volume rejection
@@ -425,7 +445,7 @@ function processSignalPipeline(
   const stopLoss = stopLossTargetMapper.calculateStopLoss(
     rawSignal as unknown as Parameters<typeof stopLossTargetMapper.calculateStopLoss>[0],
     recentM5Candles,
-    volumeResult.zoneClassification
+    volumeResult.zoneClassification,
   );
 
   const targets = stopLossTargetMapper.calculateTargets(
@@ -433,7 +453,7 @@ function processSignalPipeline(
     stopLoss,
     volumeResult.targetRMultiple,
     recentM5Candles,
-    sma20Volume
+    sma20Volume,
   );
 
   // Short-circuit: reward < 1.5R invalidation
@@ -464,7 +484,9 @@ function processSignalPipeline(
 
   // ─── Step 5: Signal Output Formatter ────────────────────────────────────────
   const formattedSignal: FormattedSignal = signalOutputFormatter.format({
-    rawSignal: rawSignal as unknown as Parameters<typeof signalOutputFormatter.format>[0]['rawSignal'],
+    rawSignal: rawSignal as unknown as Parameters<
+      typeof signalOutputFormatter.format
+    >[0]['rawSignal'],
     stopLoss,
     targets,
     zoneClassification: volumeResult.zoneClassification,
@@ -473,6 +495,13 @@ function processSignalPipeline(
   });
 
   // ─── Step 6: Emit formatted signal and deliver to outputs ──────────────────
+
+  const dailyStatus = dailySignalTargetTracker.recordQualifiedSignal(rawSignal.timestamp);
+  const dailyTargetNote = dailyStatus.minimumMet ? 'minimum met' : 'minimum pending';
+  console.log(
+    `[Daily Signal Target] UTC ${dailyStatus.dateKey}: ` +
+      `${dailyStatus.qualifiedSignals}/${dailyStatus.minimum}-${dailyStatus.maximum} qualified signals (${dailyTargetNote}).`,
+  );
 
   // Publish on event bus
   eventBus.publish('signal.formatted', formattedSignal);
@@ -503,9 +532,9 @@ function processSignalPipeline(
 
   console.log(
     `[Pipeline] Signal ${formattedSignal.id} processed: ${formattedSignal.direction} ` +
-    `entry=${formattedSignal.entryPrice.toFixed(2)} SL=${formattedSignal.stopLoss.toFixed(2)} ` +
-    `TP1=${formattedSignal.ticket1.takeProfit.toFixed(2)} TP2=${formattedSignal.ticket2.takeProfit.toFixed(2)} ` +
-    `zone=${formattedSignal.zoneClassification} risk=$${formattedSignal.riskAmount.toFixed(2)}`
+      `entry=${formattedSignal.entryPrice.toFixed(2)} SL=${formattedSignal.stopLoss.toFixed(2)} ` +
+      `TP1=${formattedSignal.ticket1.takeProfit.toFixed(2)} TP2=${formattedSignal.ticket2.takeProfit.toFixed(2)} ` +
+      `zone=${formattedSignal.zoneClassification} risk=$${formattedSignal.riskAmount.toFixed(2)}`,
   );
 }
 

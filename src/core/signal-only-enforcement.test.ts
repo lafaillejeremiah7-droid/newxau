@@ -76,6 +76,10 @@ function createValidConfig(): SystemConfig {
       liquidityPocketMinWidth: 5.0,
       minRewardRisk: 1.5,
     },
+    dailySignalTarget: {
+      minSignalsPerUtcDay: 1,
+      maxSignalsPerUtcDay: 2,
+    },
     dashboard: {
       port: 3000,
       maxSignalHistory: 100,
@@ -209,9 +213,7 @@ describe('Signal-Only Enforcement Layer', () => {
       expect(attempt.message).toContain('[CRITICAL]');
       expect(attempt.message).toContain('TestComponent');
       expect(attempt.message).toContain('placeOrder');
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('[CRITICAL]'),
-      );
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[CRITICAL]'));
     });
 
     it('should include a valid ISO 8601 timestamp', () => {
@@ -345,17 +347,13 @@ describe('Signal-Only Enforcement Layer', () => {
     it('should throw if broker credentials detected', () => {
       const config = createValidConfig();
       const env = { BROKER_API_KEY: 'key123' };
-      expect(() => enforceSignalOnlyStartup(config, env)).toThrow(
-        /Signal-only enforcement failed/,
-      );
+      expect(() => enforceSignalOnlyStartup(config, env)).toThrow(/Signal-only enforcement failed/);
     });
 
     it('should throw if trade endpoint detected in data source URL', () => {
       const config = createValidConfig();
       config.dataSource.wsUrl = 'ws://broker.com/orders/stream';
-      expect(() => enforceSignalOnlyStartup(config, {})).toThrow(
-        /Signal-only enforcement failed/,
-      );
+      expect(() => enforceSignalOnlyStartup(config, {})).toThrow(/Signal-only enforcement failed/);
     });
 
     it('should configure allowed domains from data source wsUrl on success', () => {

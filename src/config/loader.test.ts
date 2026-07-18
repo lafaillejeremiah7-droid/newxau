@@ -135,18 +135,10 @@ describe('Configuration Loader', () => {
     });
 
     it('should reject other instruments', () => {
-      expect(() => validateInstrument('EURUSD')).toThrow(
-        /Invalid instrument configured/,
-      );
-      expect(() => validateInstrument('GBPUSD')).toThrow(
-        /Invalid instrument configured/,
-      );
-      expect(() => validateInstrument('BTCUSD')).toThrow(
-        /Invalid instrument configured/,
-      );
-      expect(() => validateInstrument('')).toThrow(
-        /Invalid instrument configured/,
-      );
+      expect(() => validateInstrument('EURUSD')).toThrow(/Invalid instrument configured/);
+      expect(() => validateInstrument('GBPUSD')).toThrow(/Invalid instrument configured/);
+      expect(() => validateInstrument('BTCUSD')).toThrow(/Invalid instrument configured/);
+      expect(() => validateInstrument('')).toThrow(/Invalid instrument configured/);
     });
   });
 
@@ -155,12 +147,14 @@ describe('Configuration Loader', () => {
       const config = loadConfig({});
       expect(config.dataSource.wsUrl).toBe('ws://localhost:8080');
       expect(config.dataSource.instrument).toBe('XAUUSD');
-      expect(config.telegram.botToken).toBe(
-        '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ',
-      );
+      expect(config.telegram.botToken).toBe('8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ');
       expect(config.telegram.chatId).toBe('7040023207');
       expect(config.dashboard.port).toBe(3000);
       expect(config.logging.dbPath).toBe('./data/signals.db');
+      expect(config.dailySignalTarget).toEqual({
+        minSignalsPerUtcDay: 1,
+        maxSignalsPerUtcDay: 2,
+      });
     });
 
     it('should use environment variables when provided (env takes precedence)', () => {
@@ -170,6 +164,8 @@ describe('Configuration Loader', () => {
         TELEGRAM_CHAT_ID: 'custom-chat',
         DASHBOARD_PORT: '4000',
         DB_PATH: '/custom/path/db.sqlite',
+        MIN_SIGNALS_PER_UTC_DAY: '2',
+        MAX_SIGNALS_PER_UTC_DAY: '4',
       };
       const config = loadConfig(env);
       expect(config.dataSource.wsUrl).toBe('ws://custom:9090');
@@ -177,6 +173,10 @@ describe('Configuration Loader', () => {
       expect(config.telegram.chatId).toBe('custom-chat');
       expect(config.dashboard.port).toBe(4000);
       expect(config.logging.dbPath).toBe('/custom/path/db.sqlite');
+      expect(config.dailySignalTarget).toEqual({
+        minSignalsPerUtcDay: 2,
+        maxSignalsPerUtcDay: 4,
+      });
     });
 
     it('should always set instrument to XAUUSD (hardcoded)', () => {
@@ -184,81 +184,68 @@ describe('Configuration Loader', () => {
       expect(config.dataSource.instrument).toBe('XAUUSD');
     });
 
+    it('should reject an invalid daily signal target', () => {
+      expect(() => loadConfig({ MIN_SIGNALS_PER_UTC_DAY: 'two' })).toThrow(
+        /MIN_SIGNALS_PER_UTC_DAY must be a non-negative integer/,
+      );
+      expect(() =>
+        loadConfig({ MIN_SIGNALS_PER_UTC_DAY: '2', MAX_SIGNALS_PER_UTC_DAY: '1' }),
+      ).toThrow(/MAX_SIGNALS_PER_UTC_DAY must be greater than or equal/);
+    });
+
     it('should throw if broker API key is in env vars', () => {
       const env = { BROKER_API_KEY: 'secret-key' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if broker API secret is in env vars', () => {
       const env = { BROKER_API_SECRET: 'secret' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if trading account ID is in env vars', () => {
       const env = { TRADING_ACCOUNT_ID: 'account-123' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if order endpoint is in env vars', () => {
       const env = { ORDER_ENDPOINT: 'https://broker.com/orders' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if trade endpoint is in env vars', () => {
       const env = { TRADE_ENDPOINT: 'https://broker.com/trade' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if execution URL is in env vars', () => {
       const env = { EXECUTION_URL: 'https://exec.broker.com' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if broker URL is in env vars', () => {
       const env = { BROKER_URL: 'https://broker.com' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if MT4 prefixed key is in env vars', () => {
       const env = { MT4_ACCOUNT: '12345' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if MT5 prefixed key is in env vars', () => {
       const env = { MT5_LOGIN: 'user123' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if OANDA prefixed key is in env vars', () => {
       const env = { OANDA_ACCOUNT_ID: 'acc-1' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should throw if IBKR prefixed key is in env vars', () => {
       const env = { IBKR_PORT: '7497' };
-      expect(() => loadConfig(env)).toThrow(
-        /Trade execution configuration detected/,
-      );
+      expect(() => loadConfig(env)).toThrow(/Trade execution configuration detected/);
     });
 
     it('should log critical error when forbidden config detected', () => {
@@ -268,9 +255,7 @@ describe('Configuration Loader', () => {
       } catch {
         // expected
       }
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('[CRITICAL]'),
-      );
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[CRITICAL]'));
     });
 
     it('should include all static config values correctly', () => {
@@ -322,16 +307,17 @@ describe('Configuration Loader', () => {
       // Dashboard
       expect(config.dashboard.maxSignalHistory).toBe(100);
 
+      // Soft daily signal target
+      expect(config.dailySignalTarget.minSignalsPerUtcDay).toBe(1);
+      expect(config.dailySignalTarget.maxSignalsPerUtcDay).toBe(2);
+
       // Logging
       expect(config.logging.retentionDays).toBe(90);
       expect(config.logging.maxRetries).toBe(3);
     });
 
     it('should not throw for non-existent config file path', () => {
-      const config = loadConfig(
-        {},
-        '/nonexistent/path/config.json',
-      );
+      const config = loadConfig({}, '/nonexistent/path/config.json');
       expect(config.dataSource.instrument).toBe('XAUUSD');
     });
 
