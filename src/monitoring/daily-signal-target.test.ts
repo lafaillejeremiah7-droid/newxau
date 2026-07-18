@@ -26,7 +26,7 @@ describe('DailySignalTargetTracker', () => {
     expect(tracker.getStatus().qualifiedSignals).toBe(1);
   });
 
-  it('reports when the soft maximum is reached without suppressing later signals', () => {
+  it('enforces the maximum without counting later signals', () => {
     const tracker = new DailySignalTargetTracker(
       { minSignalsPerUtcDay: 1, maxSignalsPerUtcDay: 2 },
       '2026-07-18T01:00:00.000Z',
@@ -34,7 +34,7 @@ describe('DailySignalTargetTracker', () => {
 
     tracker.recordQualifiedSignal('2026-07-18T02:00:00.000Z');
     expect(tracker.recordQualifiedSignal('2026-07-18T03:00:00.000Z').maximumReached).toBe(true);
-    expect(tracker.recordQualifiedSignal('2026-07-18T04:00:00.000Z').qualifiedSignals).toBe(3);
+    expect(tracker.recordQualifiedSignal('2026-07-18T04:00:00.000Z').qualifiedSignals).toBe(2);
   });
 
   it('resets the counter at the next UTC day and returns the completed day', () => {

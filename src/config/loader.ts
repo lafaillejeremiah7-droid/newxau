@@ -178,6 +178,9 @@ export function loadConfig(
   const dbPath = env['DB_PATH'] ?? './data/signals.db';
   const minSignalsPerUtcDay = parseNonNegativeInteger(env, 'MIN_SIGNALS_PER_UTC_DAY', 1);
   const maxSignalsPerUtcDay = parseNonNegativeInteger(env, 'MAX_SIGNALS_PER_UTC_DAY', 2);
+  if (maxSignalsPerUtcDay > 2) {
+    throw new Error('MAX_SIGNALS_PER_UTC_DAY must not exceed 2');
+  }
   if (maxSignalsPerUtcDay < minSignalsPerUtcDay) {
     throw new Error(
       'MAX_SIGNALS_PER_UTC_DAY must be greater than or equal to MIN_SIGNALS_PER_UTC_DAY',

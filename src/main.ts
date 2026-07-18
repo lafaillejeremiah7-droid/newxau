@@ -39,7 +39,7 @@ import { TelegramNotifier } from './output/telegram-notifier.js';
 import { createDashboardServer } from './output/dashboard-server.js';
 import { LiquidityZoneDetector } from './core/liquidity-zone-detector.js';
 import { createCandlePatternAnalyzer } from './core/candle-pattern-analyzer.js';
-import { DailySignalTargetTracker } from './monitoring/daily-signal-target.js';
+import { SharedDailySignalCap } from './monitoring/daily-signal-target.js';
 
 import type { RawSignal } from './core/signal-engine-fsm.js';
 import type { Candle } from './types/candle.js';
@@ -109,11 +109,16 @@ async function main(): Promise<void> {
   // Candle Buffer Manager
   const candleBufferManager = new CandleBufferManager();
 
-  // Soft daily signal target tracker. This observes qualified signals only;
-  // it never creates, suppresses, or changes a signal.
-  const dailySignalTargetTracker = new DailySignalTargetTracker(config.dailySignalTarget);
+  // Shared hard cap: both isolated instrument runtimes reserve from the same
+  // persisted UTC-day counter. The minimum remains observational and never
+  // fabricates a signal when no valid setup exists.
+  const dailySignalCap = new SharedDailySignalCap(
+    config.dailySignalTarget,
+    process.env['DAILY_SIGNAL_CAP_PATH'] ?? './data/daily-signal-cap.json',
+  );
   console.log(
-    `[Daily Signal Target] Soft UTC-day target: ${config.dailySignalTarget.minSignalsPerUtcDay}-${config.dailySignalTarget.maxSignalsPerUtcDay} qualified signals.`,
+    `[Daily Signal Cap] Combined UTC-day target: ${config.dailySignalTarget.minSignalsPerUtcDay}-${config.dailySignalTarget.maxSignalsPerUtcDay} qualified signals; ` +
+      `state=${process.env['DAILY_SIGNAL_CAP_PATH'] ?? './data/daily-signal-cap.json'}.`,
   );
 
   // Filters
@@ -218,15 +223,8 @@ async function main(): Promise<void> {
   eventBus.subscribe('candle.close', (event) => {
     const candle = event.candle as Candle;
 
-    const rollover = dailySignalTargetTracker.observe(candle.timestamp);
-    if (rollover) {
-      const completed = rollover.completedDay;
-      const completion = completed.minimumMet ? 'minimum met' : 'minimum missed';
-      console.log(
-        `[Daily Signal Target] UTC ${completed.dateKey} complete: ` +
-          `${completed.qualifiedSignals}/${completed.minimum}-${completed.maximum} qualified signals (${completion}).`,
-      );
-    }
+    // Daily cap state is persisted and reserved only after the complete
+    // qualification pipeline, so candle processing remains unaffected.
 
     // Add to buffer for SMA/volume tracking
     candleBufferManager.addCandle(candle);
@@ -259,7 +257,7 @@ async function main(): Promise<void> {
       dashboard,
       signalLogger,
       eventBus,
-      dailySignalTargetTracker,
+      dailySignalCap,
     );
   });
 
@@ -343,11 +341,11 @@ async function main(): Promise<void> {
 
     console.log(`\n[Isagi Engine] Received ${signal}. Shutting down gracefully...`);
 
-    const dailyStatus = dailySignalTargetTracker.getStatus();
+    const dailyStatus = dailySignalCap.getStatus();
     const dailyCompletion = dailyStatus.minimumMet ? 'minimum met' : 'minimum missed';
     console.log(
-      `[Daily Signal Target] UTC ${dailyStatus.dateKey}: ` +
-        `${dailyStatus.qualifiedSignals}/${dailyStatus.minimum}-${dailyStatus.maximum} qualified signals (${dailyCompletion}).`,
+      `[Daily Signal Cap] UTC ${dailyStatus.dateKey}: ` +
+        `${dailyStatus.qualifiedSignals}/${dailyStatus.minimum}-${dailyStatus.maximum} accepted signals (${dailyCompletion}).`,
     );
 
     try {
@@ -430,7 +428,7 @@ function processSignalPipeline(
   dashboard: ReturnType<typeof createDashboardServer>,
   signalLogger: SqliteSignalLogger,
   eventBus: EventBus,
-  dailySignalTargetTracker: DailySignalTargetTracker,
+  dailySignalCap: SharedDailySignalCap,
 ): void {
   // Get recent M5 candles for pipeline calculations
   const recentM5Candles = candleBufferManager.getLatestCandles('M5', 20);
@@ -508,13 +506,34 @@ function processSignalPipeline(
     slippageResult,
   });
 
+  // Reserve the shared daily slot before any event-bus, dashboard, logger,
+  // or Telegram output. This is the combined XAUUSD/BTCUSD hard maximum.
+  const dailyDecision = dailySignalCap.tryRecordQualifiedSignal(rawSignal.timestamp);
+  if (!dailyDecision.accepted) {
+    console.log(
+      `[Pipeline] Signal ${rawSignal.id} suppressed: UTC ${dailyDecision.status.dateKey} ` +
+        `already has ${dailyDecision.status.qualifiedSignals}/${dailyDecision.status.maximum} accepted signals.`,
+    );
+    signalLogger.logRejection({
+      timestamp: new Date().toISOString(),
+      reason: 'Combined UTC-day signal cap reached',
+      filter: 'daily_signal_cap',
+      context: {
+        signalId: rawSignal.id,
+        dateKey: dailyDecision.status.dateKey,
+        acceptedSignals: dailyDecision.status.qualifiedSignals,
+        maximumSignals: dailyDecision.status.maximum,
+      },
+    });
+    return;
+  }
+
   // ─── Step 6: Emit formatted signal and deliver to outputs ──────────────────
 
-  const dailyStatus = dailySignalTargetTracker.recordQualifiedSignal(rawSignal.timestamp);
-  const dailyTargetNote = dailyStatus.minimumMet ? 'minimum met' : 'minimum pending';
+  const dailyTargetNote = dailyDecision.status.minimumMet ? 'minimum met' : 'minimum pending';
   console.log(
-    `[Daily Signal Target] UTC ${dailyStatus.dateKey}: ` +
-      `${dailyStatus.qualifiedSignals}/${dailyStatus.minimum}-${dailyStatus.maximum} qualified signals (${dailyTargetNote}).`,
+    `[Daily Signal Cap] UTC ${dailyDecision.status.dateKey}: ` +
+      `${dailyDecision.status.qualifiedSignals}/${dailyDecision.status.minimum}-${dailyDecision.status.maximum} accepted signals (${dailyTargetNote}).`,
   );
 
   // Publish on event bus
