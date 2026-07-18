@@ -43,6 +43,15 @@ on_signal() {
 trap on_signal INT TERM
 trap 'cleanup "$?"' EXIT
 
+TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
+TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+
+if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_CHAT_ID" ]]; then
+  echo "[Startup] ERROR: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set."
+  echo "[Startup] No signal runtime was started."
+  exit 1
+fi
+
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo "  Isagi Engine - Starting isolated signal runtimes"
@@ -97,7 +106,8 @@ start_runtime() {
 
   echo "[Startup] Starting ${instrument} signal bot..."
   INSTRUMENT="$instrument" WS_URL="ws://localhost:${bridge_port}" \
-    DASHBOARD_PORT="$dashboard_port" DB_PATH="$db_path" npm start &
+    DASHBOARD_PORT="$dashboard_port" DB_PATH="$db_path" \
+    TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" npm start &
   bot_pid=$!
   PIDS+=("$bot_pid")
   echo "[Startup] ${instrument} bridge PID=${bridge_pid}, bot PID=${bot_pid}"

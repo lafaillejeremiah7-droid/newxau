@@ -151,7 +151,7 @@ describe('Configuration Loader', () => {
       expect(config.dataSource.wsUrl).toBe('ws://localhost:8080');
       expect(config.dataSource.instrument).toBe('XAUUSD');
       expect(config.telegram.botToken).toBe('');
-      expect(config.telegram.chatId).toBe('7040023207');
+      expect(config.telegram.chatId).toBe('');
       expect(config.dashboard.port).toBe(3000);
       expect(config.logging.dbPath).toBe('./data/signals.db');
       expect(config.dailySignalTarget).toEqual({

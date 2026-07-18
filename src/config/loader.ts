@@ -171,7 +171,9 @@ export function loadConfig(
   validateInstrument(instrumentValue);
   const instrument = instrumentValue;
   const botToken = env['TELEGRAM_BOT_TOKEN'] ?? '';
-  const chatId = env['TELEGRAM_CHAT_ID'] ?? '7040023207';
+  // Telegram credentials are intentionally opt-in; never route signals to a
+  // hard-coded recipient when the runtime environment is not configured.
+  const chatId = env['TELEGRAM_CHAT_ID'] ?? '';
   const dashboardPort = env['DASHBOARD_PORT'] ? parseInt(env['DASHBOARD_PORT'], 10) : 3000;
   const dbPath = env['DB_PATH'] ?? './data/signals.db';
   const minSignalsPerUtcDay = parseNonNegativeInteger(env, 'MIN_SIGNALS_PER_UTC_DAY', 1);

@@ -48,6 +48,11 @@ export type FetchFn = (
 /** Sleep function type for dependency injection (testability) */
 export type SleepFn = (ms: number) => Promise<void>;
 
+/** Optional delivery mode used only by the one-shot Telegram smoke test. */
+export interface SendSignalOptions {
+  testOnly?: boolean;
+}
+
 /** Required fields that must be present on a FormattedSignal for delivery */
 const REQUIRED_FIELDS: (keyof FormattedSignal)[] = [
   'direction',
@@ -92,19 +97,14 @@ function validateSignalFields(signal: FormattedSignal): string | null {
  * Includes: direction, entry price, SL, TP1, TP2, split details, zone, risk amount, reasoning (≤280 chars).
  * MUST NOT include trade execution commands or order placement instructions.
  */
-function formatSignalMessage(signal: FormattedSignal): string {
+function formatSignalMessage(signal: FormattedSignal, options: SendSignalOptions = {}): string {
   const directionEmoji = signal.direction === 'long' ? '🟢' : '🔴';
   const directionLabel = signal.direction.toUpperCase();
-  const zoneLabel =
-    signal.zoneClassification === 'expansion_zone'
-      ? 'Expansion Zone'
-      : 'Chop Zone';
+  const zoneLabel = signal.zoneClassification === 'expansion_zone' ? 'Expansion Zone' : 'Chop Zone';
 
   // Truncate reasoning to 280 characters max
   const reasoning =
-    signal.reasoning.length > 280
-      ? signal.reasoning.slice(0, 280)
-      : signal.reasoning;
+    signal.reasoning.length > 280 ? signal.reasoning.slice(0, 280) : signal.reasoning;
 
   const lines: string[] = [
     `${directionEmoji} <b>${signal.instrument === 'BTCUSD' ? 'BTC/USD' : 'XAU/USD'} ${directionLabel} SIGNAL</b>`,
@@ -131,6 +131,11 @@ function formatSignalMessage(signal: FormattedSignal): string {
     lines.push(
       `<i>Slippage: ${signal.slippage.slippagePips.toFixed(1)} pips (adjusted from ${signal.slippage.originalEntry.toFixed(2)})</i>`,
     );
+  }
+
+  if (options.testOnly) {
+    lines.push('');
+    lines.push('⚠️ <b>TEST SIGNAL — DO NOT TRADE</b>');
   }
 
   return lines.join('\n');
@@ -167,19 +172,19 @@ export class TelegramNotifier {
    * Sends a formatted signal to the configured Telegram chat.
    * Returns a DeliveryResult indicating success/failure and attempt count.
    */
-  async sendSignal(signal: FormattedSignal): Promise<DeliveryResult> {
+  async sendSignal(
+    signal: FormattedSignal,
+    options: SendSignalOptions = {},
+  ): Promise<DeliveryResult> {
     const timestamp = new Date().toISOString();
 
     // Check chat configuration
     if (!this.config.chatId || !this.config.botToken) {
       const missingConfig = !this.config.chatId ? 'chatId' : 'botToken';
-      this.logger.error(
-        `Telegram delivery suppressed: missing configuration (${missingConfig})`,
-        {
-          missingConfig,
-          signalId: signal.id,
-        },
-      );
+      this.logger.error(`Telegram delivery suppressed: missing configuration (${missingConfig})`, {
+        missingConfig,
+        signalId: signal.id,
+      });
       return {
         success: false,
         attempts: 0,
@@ -191,13 +196,10 @@ export class TelegramNotifier {
     // Validate required signal fields
     const validationError = validateSignalFields(signal);
     if (validationError) {
-      this.logger.error(
-        `Telegram delivery suppressed: ${validationError}`,
-        {
-          signalId: signal.id,
-          error: validationError,
-        },
-      );
+      this.logger.error(`Telegram delivery suppressed: ${validationError}`, {
+        signalId: signal.id,
+        error: validationError,
+      });
       return {
         success: false,
         attempts: 0,
@@ -207,7 +209,7 @@ export class TelegramNotifier {
     }
 
     // Format the message
-    const messageText = formatSignalMessage(signal);
+    const messageText = formatSignalMessage(signal, options);
 
     // Attempt delivery with exponential backoff retry
     const url = `https://api.telegram.org/bot${this.config.botToken}/sendMessage`;
@@ -243,14 +245,12 @@ export class TelegramNotifier {
 
         lastError = `HTTP ${response.status}: ${response.statusText}`;
       } catch (err: unknown) {
-        lastError =
-          err instanceof Error ? err.message : 'Unknown fetch error';
+        lastError = err instanceof Error ? err.message : 'Unknown fetch error';
       }
 
       // If not the last attempt, wait with exponential backoff before retry
       if (attempt < maxAttempts) {
-        const backoffMs =
-          this.config.baseRetryMs * Math.pow(2, attempt - 1);
+        const backoffMs = this.config.baseRetryMs * Math.pow(2, attempt - 1);
         this.logger.warn(
           `Telegram delivery attempt ${attempt} failed, retrying in ${backoffMs}ms`,
           {
