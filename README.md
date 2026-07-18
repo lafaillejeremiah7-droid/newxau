@@ -45,6 +45,10 @@ Set the credentials through environment variables; do not commit bot tokens or c
 ```bash
 export TELEGRAM_BOT_TOKEN="<your Telegram bot token>"
 export TELEGRAM_CHAT_ID="<your Telegram chat ID>"
+
+# Optional smoke test: fetches live XAU/USD and BTC/USD prices and sends
+# clearly labeled TEST SIGNAL — DO NOT TRADE messages.
+npm run telegram:test
 ```
 
 ## Running Separately

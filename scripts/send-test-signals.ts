@@ -1,101 +1,189 @@
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
-const CHAT_ID = '7040023207';
+/**
+ * Sends clearly labeled Telegram smoke-test signals for both supported instruments.
+ *
+ * The prices are fetched live from TradingView immediately before sending. The
+ * levels are synthetic and the messages explicitly say not to trade.
+ *
+ * Usage:
+ *   TELEGRAM_BOT_TOKEN="..." TELEGRAM_CHAT_ID="..." npm run telegram:test
+ */
 
-async function sendTelegramMessage(text: string): Promise<boolean> {
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  const response = await fetch(url, {
+import { TelegramNotifier, type TelegramLogger } from '../src/output/telegram-notifier.js';
+import type { FormattedSignal } from '../src/types/signal.js';
+import type { Instrument } from '../src/config/instrument.js';
+
+interface MarketSpec {
+  instrument: Instrument;
+  displayName: string;
+  scannerUrl: string;
+  ticker: string;
+  direction: 'long' | 'short';
+  stopDistance: number;
+  targetDistance: number;
+  pipSize: number;
+}
+
+interface TradingViewResponse {
+  data?: Array<{ d?: number[] }>;
+}
+
+const MARKETS: MarketSpec[] = [
+  {
+    instrument: 'XAUUSD',
+    displayName: 'XAU/USD',
+    scannerUrl: 'https://scanner.tradingview.com/cfd/scan',
+    ticker: 'OANDA:XAUUSD',
+    direction: 'long',
+    stopDistance: 2.5,
+    targetDistance: 7.5,
+    pipSize: 0.1,
+  },
+  {
+    instrument: 'BTCUSD',
+    displayName: 'BTC/USD',
+    scannerUrl: 'https://scanner.tradingview.com/crypto/scan',
+    ticker: 'COINBASE:BTCUSD',
+    direction: 'short',
+    stopDistance: 250,
+    targetDistance: 750,
+    pipSize: 1,
+  },
+];
+
+const logger: TelegramLogger = {
+  error: (message, context) => console.error(`[Telegram test] ${message}`, context ?? ''),
+  warn: (message, context) => console.warn(`[Telegram test] ${message}`, context ?? ''),
+  info: (message, context) => console.info(`[Telegram test] ${message}`, context ?? ''),
+};
+
+async function fetchLiveClose(market: MarketSpec): Promise<number> {
+  const response = await fetch(market.scannerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text,
-      parse_mode: 'HTML',
+      symbols: {
+        tickers: [market.ticker],
+        query: { types: [] },
+      },
+      columns: ['close'],
     }),
   });
-  const data = await response.json();
-  console.log('Response:', JSON.stringify(data, null, 2));
-  return data.ok;
+
+  if (!response.ok) {
+    throw new Error(
+      `${market.displayName} TradingView HTTP ${response.status}: ${response.statusText}`,
+    );
+  }
+
+  const payload = (await response.json()) as TradingViewResponse;
+  const close = payload.data?.[0]?.d?.[0];
+  if (typeof close !== 'number' || !Number.isFinite(close) || close <= 0) {
+    throw new Error(`${market.displayName} returned no valid live close price`);
+  }
+
+  return close;
 }
 
-function getCurrentUTCTime(): string {
-  return new Date().toUTCString().replace('GMT', 'UTC');
+function createTestSignal(market: MarketSpec, entryPrice: number): FormattedSignal {
+  const { direction, stopDistance, targetDistance } = market;
+  const stopLoss = direction === 'long' ? entryPrice - stopDistance : entryPrice + stopDistance;
+  const tp2 = direction === 'long' ? entryPrice + targetDistance : entryPrice - targetDistance;
+  const tp1 =
+    direction === 'long' ? entryPrice + targetDistance * 0.35 : entryPrice - targetDistance * 0.35;
+
+  return {
+    id: `telegram-test-${market.instrument.toLowerCase()}-${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    instrument: market.instrument,
+    direction,
+    entryPrice,
+    stopLoss,
+    ticket1: {
+      label: 'Safety Lock',
+      positionSizePercent: 45,
+      entryPrice,
+      stopLoss,
+      takeProfit: tp1,
+    },
+    ticket2: {
+      label: 'Runner',
+      positionSizePercent: 55,
+      entryPrice,
+      stopLoss,
+      takeProfit: tp2,
+    },
+    zoneClassification: 'expansion_zone',
+    riskAmount: 35,
+    rUnit: stopDistance / market.pipSize,
+    reasoning: `TEST ONLY: synthetic ${direction.toUpperCase()} levels built from the live ${market.displayName} TradingView close. No trade was placed.`,
+    slippage: {
+      applied: false,
+      originalEntry: entryPrice,
+      adjustedEntry: entryPrice,
+      slippagePips: 0,
+    },
+    breakevenTrigger: 'Test message only; no position exists.',
+    trailingStopGuidance: 'Test message only; no position exists.',
+  };
 }
 
-async function main() {
-  const currentTime = getCurrentUTCTime();
+async function main(): Promise<void> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN ?? '';
+  const chatId = process.env.TELEGRAM_CHAT_ID ?? '';
 
-  const longSignal = `🟢 <b>ISAGI ENGINE — LONG SIGNAL</b> 🟢
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (!botToken || !chatId) {
+    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set');
+  }
 
-📊 <b>Instrument:</b> XAU/USD
-⏱ <b>Timeframe:</b> M5
-🕐 <b>Time:</b> ${currentTime}
+  const notifier = new TelegramNotifier(
+    {
+      botToken,
+      chatId,
+      maxRetries: 3,
+      baseRetryMs: 2000,
+    },
+    logger,
+    async (url, options) => {
+      const response = await fetch(url, {
+        method: options.method,
+        headers: options.headers,
+        body: options.body,
+      });
+      return {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    },
+  );
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  let failed = false;
+  for (const market of MARKETS) {
+    const liveClose = await fetchLiveClose(market);
+    const signal = createTestSignal(market, liveClose);
+    console.log(
+      `[Telegram test] Sending ${market.displayName} test using live close ${liveClose.toFixed(2)}...`,
+    );
 
-💰 <b>Entry:</b> 2,645.80
-🛑 <b>Stop Loss:</b> 2,643.30 (-2.50)
-✅ <b>TP1 (Safety Lock - 45%):</b> 2,647.55
-🎯 <b>TP2 (Runner - 55%):</b> 2,653.30
+    const result = await notifier.sendSignal(signal, { testOnly: true });
+    if (!result.success) {
+      failed = true;
+      console.error(
+        `[Telegram test] ${market.displayName} failed: ${result.error ?? 'unknown error'}`,
+      );
+    } else {
+      console.log(
+        `[Telegram test] ${market.displayName} delivered in ${result.attempts} attempt(s).`,
+      );
+    }
+  }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📈 <b>Zone:</b> Expansion Zone (3.0R)
-💵 <b>Risk:</b> $35.00
-📐 <b>R-Unit:</b> 2.50
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 <b>Reasoning:</b> H1 liquidity zone sweep at 2643. M5 bullish rejection hammer after 3-candle absorption. Volume expanding. Entry at structural window confirmation.
-
-⚡ <b>Breakeven:</b> Move SL to entry when TP1 hit
-📏 <b>Trail:</b> M5 swing low after breakeven
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ <b>TEST SIGNAL — DO NOT TRADE</b> ⚠️`;
-
-  const shortSignal = `🔴 <b>ISAGI ENGINE — SHORT SIGNAL</b> 🔴
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 <b>Instrument:</b> XAU/USD
-⏱ <b>Timeframe:</b> M5
-🕐 <b>Time:</b> ${currentTime}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💰 <b>Entry:</b> 2,658.40
-🛑 <b>Stop Loss:</b> 2,660.90 (+2.50)
-✅ <b>TP1 (Safety Lock - 45%):</b> 2,656.65
-🎯 <b>TP2 (Runner - 55%):</b> 2,650.90
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📈 <b>Zone:</b> Chop Zone (1.5R)
-💵 <b>Risk:</b> $35.00
-📐 <b>R-Unit:</b> 2.50
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 <b>Reasoning:</b> M15 structural high rejection. Shooting star at 2661 with decreasing volume. Retracement complete (3 candles). Bearish engulfing confirmation.
-
-⚡ <b>Breakeven:</b> Move SL to entry when TP1 hit
-📏 <b>Trail:</b> M5 swing high after breakeven
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ <b>TEST SIGNAL — DO NOT TRADE</b> ⚠️`;
-
-  console.log('📤 Sending Long Signal...');
-  const longResult = await sendTelegramMessage(longSignal);
-  console.log(longResult ? '✅ Long signal sent successfully!' : '❌ Failed to send long signal');
-
-  // 2-second delay between messages
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  console.log('📤 Sending Short Signal...');
-  const shortResult = await sendTelegramMessage(shortSignal);
-  console.log(shortResult ? '✅ Short signal sent successfully!' : '❌ Failed to send short signal');
-
-  console.log('\n🏁 Done! Both test signals sent.');
+  if (failed) {
+    process.exitCode = 1;
+  }
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  console.error('[Telegram test] Aborted:', error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

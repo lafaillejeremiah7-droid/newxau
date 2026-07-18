@@ -4,7 +4,7 @@
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
-const CHAT_ID = '7040023207';
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
 
 const message = `⚠️ <b>TEST ONLY — NOT A REAL TRADING SIGNAL</b>
 
@@ -29,6 +29,10 @@ const message = `⚠️ <b>TEST ONLY — NOT A REAL TRADING SIGNAL</b>
 • Do NOT move stop before TP1 is secured`;
 
 async function main() {
+  if (!BOT_TOKEN || !CHAT_ID) {
+    throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set');
+  }
+
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
   const body = JSON.stringify({
