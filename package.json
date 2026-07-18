@@ -15,6 +15,8 @@
     "start:all": "bash scripts/start-all.sh",
     "start:bridge": "npx tsx src/bridges/live-data-bridge.ts",
     "telegram:test": "npx tsx scripts/send-test-signals.ts",
+    "backtest:year": "npx tsx scripts/backtest-one-year.ts",
+    "backtest:three-year": "npx tsx scripts/backtest-three-year.ts",
     "bridge:twelvedata": "npx tsx src/bridges/twelve-data-bridge.ts",
     "bridge:live": "npx tsx src/bridges/live-data-bridge.ts",
     "bridge:start": "npx tsx src/bridges/live-data-bridge.ts"

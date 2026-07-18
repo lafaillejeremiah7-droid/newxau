@@ -167,8 +167,8 @@ describe('Configuration Loader', () => {
         TELEGRAM_CHAT_ID: 'custom-chat',
         DASHBOARD_PORT: '4000',
         DB_PATH: '/custom/path/db.sqlite',
-        MIN_SIGNALS_PER_UTC_DAY: '2',
-        MAX_SIGNALS_PER_UTC_DAY: '4',
+        MIN_SIGNALS_PER_UTC_DAY: '1',
+        MAX_SIGNALS_PER_UTC_DAY: '2',
       };
       const config = loadConfig(env);
       expect(config.dataSource.wsUrl).toBe('ws://custom:9090');
@@ -177,9 +177,15 @@ describe('Configuration Loader', () => {
       expect(config.dashboard.port).toBe(4000);
       expect(config.logging.dbPath).toBe('/custom/path/db.sqlite');
       expect(config.dailySignalTarget).toEqual({
-        minSignalsPerUtcDay: 2,
-        maxSignalsPerUtcDay: 4,
+        minSignalsPerUtcDay: 1,
+        maxSignalsPerUtcDay: 2,
       });
+    });
+
+    it('rejects a configured maximum above two signals per UTC day', () => {
+      expect(() => loadConfig({ MAX_SIGNALS_PER_UTC_DAY: '4' })).toThrow(
+        /MAX_SIGNALS_PER_UTC_DAY must not exceed 2/,
+      );
     });
 
     it('should load BTCUSD when selected by environment', () => {

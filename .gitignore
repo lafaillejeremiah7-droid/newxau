@@ -2,3 +2,8 @@ node_modules/
 dist/
 *.log
 .env
+/data/historical/
+/data/backtest-results/
+/data/daily-signal-cap.json
+/data/daily-signal-cap.json.lock
+/data/daily-signal-cap.json.*.tmp

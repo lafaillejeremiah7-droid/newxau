@@ -78,7 +78,7 @@ export interface SystemConfig {
     minRewardRisk: 1.5;
   };
 
-  /** Soft qualified-signal target per UTC day; never forces signal generation. */
+  /** Minimum qualified-signal target per UTC day; never forces signal generation. */
   dailySignalTarget: {
     minSignalsPerUtcDay: number;
     maxSignalsPerUtcDay: number;

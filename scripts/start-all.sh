@@ -11,6 +11,7 @@ XAU_DASHBOARD_PORT="${XAU_DASHBOARD_PORT:-3000}"
 BTC_DASHBOARD_PORT="${BTC_DASHBOARD_PORT:-3001}"
 XAU_DB_PATH="${XAU_DB_PATH:-./data/signals.db}"
 BTC_DB_PATH="${BTC_DB_PATH:-./data/signals-btc.db}"
+DAILY_SIGNAL_CAP_PATH="${DAILY_SIGNAL_CAP_PATH:-./data/daily-signal-cap.json}"
 START_INSTRUMENTS="${START_INSTRUMENTS:-XAUUSD,BTCUSD}"
 
 PIDS=()
@@ -106,7 +107,7 @@ start_runtime() {
 
   echo "[Startup] Starting ${instrument} signal bot..."
   INSTRUMENT="$instrument" WS_URL="ws://localhost:${bridge_port}" \
-    DASHBOARD_PORT="$dashboard_port" DB_PATH="$db_path" \
+    DASHBOARD_PORT="$dashboard_port" DB_PATH="$db_path" DAILY_SIGNAL_CAP_PATH="$DAILY_SIGNAL_CAP_PATH" \
     TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID" npm start &
   bot_pid=$!
   PIDS+=("$bot_pid")
