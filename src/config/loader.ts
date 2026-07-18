@@ -49,9 +49,7 @@ export function isForbiddenKey(key: string): boolean {
  * Scans environment variables for any forbidden broker/trade execution configuration.
  * Returns an array of detected forbidden keys.
  */
-export function detectForbiddenEnvVars(
-  env: Record<string, string | undefined>,
-): string[] {
+export function detectForbiddenEnvVars(env: Record<string, string | undefined>): string[] {
   const detected: string[] = [];
 
   for (const key of Object.keys(env)) {
@@ -68,10 +66,7 @@ export function detectForbiddenEnvVars(
  * Performs a recursive check on all keys in the object.
  * Returns an array of detected forbidden keys.
  */
-export function detectForbiddenJsonKeys(
-  obj: Record<string, unknown>,
-  parentPath = '',
-): string[] {
+export function detectForbiddenJsonKeys(obj: Record<string, unknown>, parentPath = ''): string[] {
   const detected: string[] = [];
 
   for (const key of Object.keys(obj)) {
@@ -83,9 +78,7 @@ export function detectForbiddenJsonKeys(
 
     const value = obj[key];
     if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      detected.push(
-        ...detectForbiddenJsonKeys(value as Record<string, unknown>, fullPath),
-      );
+      detected.push(...detectForbiddenJsonKeys(value as Record<string, unknown>, fullPath));
     }
   }
 
@@ -120,6 +113,23 @@ function loadJsonConfig(configPath: string): Record<string, unknown> | null {
   return null;
 }
 
+function parseNonNegativeInteger(
+  env: Record<string, string | undefined>,
+  key: string,
+  defaultValue: number,
+): number {
+  const rawValue = env[key];
+  if (rawValue === undefined) {
+    return defaultValue;
+  }
+
+  const parsed = Number(rawValue);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${key} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
 /**
  * Loads and validates the system configuration.
  * Reads from environment variables (higher precedence) and config.json file.
@@ -134,8 +144,7 @@ export function loadConfig(
   env: Record<string, string | undefined> = process.env,
   configFilePath?: string,
 ): SystemConfig {
-  const resolvedConfigPath =
-    configFilePath ?? path.resolve(process.cwd(), 'config.json');
+  const resolvedConfigPath = configFilePath ?? path.resolve(process.cwd(), 'config.json');
 
   // Load JSON config file if it exists
   const jsonConfig = loadJsonConfig(resolvedConfigPath);
@@ -161,14 +170,17 @@ export function loadConfig(
   // Step 3: Build configuration with defaults, env vars take precedence
   const wsUrl = env['WS_URL'] ?? 'ws://localhost:8080';
   const instrument = 'XAUUSD' as const;
-  const botToken =
-    env['TELEGRAM_BOT_TOKEN'] ??
-    '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ';
+  const botToken = env['TELEGRAM_BOT_TOKEN'] ?? '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ';
   const chatId = env['TELEGRAM_CHAT_ID'] ?? '7040023207';
-  const dashboardPort = env['DASHBOARD_PORT']
-    ? parseInt(env['DASHBOARD_PORT'], 10)
-    : 3000;
+  const dashboardPort = env['DASHBOARD_PORT'] ? parseInt(env['DASHBOARD_PORT'], 10) : 3000;
   const dbPath = env['DB_PATH'] ?? './data/signals.db';
+  const minSignalsPerUtcDay = parseNonNegativeInteger(env, 'MIN_SIGNALS_PER_UTC_DAY', 1);
+  const maxSignalsPerUtcDay = parseNonNegativeInteger(env, 'MAX_SIGNALS_PER_UTC_DAY', 2);
+  if (maxSignalsPerUtcDay < minSignalsPerUtcDay) {
+    throw new Error(
+      'MAX_SIGNALS_PER_UTC_DAY must be greater than or equal to MIN_SIGNALS_PER_UTC_DAY',
+    );
+  }
 
   // Step 4: Validate instrument
   validateInstrument(instrument);
@@ -230,6 +242,10 @@ export function loadConfig(
       wickClusterMaxRange: 1.0,
       liquidityPocketMinWidth: 5.0,
       minRewardRisk: 1.5,
+    },
+    dailySignalTarget: {
+      minSignalsPerUtcDay,
+      maxSignalsPerUtcDay,
     },
     dashboard: {
       port: dashboardPort,
