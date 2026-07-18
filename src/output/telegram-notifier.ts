@@ -107,7 +107,7 @@ function formatSignalMessage(signal: FormattedSignal): string {
       : signal.reasoning;
 
   const lines: string[] = [
-    `${directionEmoji} <b>XAU/USD ${directionLabel} SIGNAL</b>`,
+    `${directionEmoji} <b>${signal.instrument === 'BTCUSD' ? 'BTC/USD' : 'XAU/USD'} ${directionLabel} SIGNAL</b>`,
     '',
     `<b>Entry:</b> ${signal.entryPrice.toFixed(2)}`,
     `<b>Stop Loss:</b> ${signal.stopLoss.toFixed(2)}`,

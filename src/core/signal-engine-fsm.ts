@@ -10,6 +10,7 @@
  */
 
 import crypto from 'node:crypto';
+import type { Instrument } from '../config/instrument.js';
 import type { Candle } from '../types/candle.js';
 import type {
   EngineState,
@@ -34,6 +35,7 @@ export const BODY_RATIO_THRESHOLD = 0.6;
 export interface RawSignal {
   id: string;
   timestamp: string;
+  instrument?: Instrument;
   direction: 'long' | 'short';
   entryPrice: number;
   liquidityZoneLevel: number;
@@ -67,6 +69,8 @@ export interface ISignalEngineFSM {
 /** Dependencies required by the Signal Engine FSM */
 export interface SignalEngineFSMDependencies {
   eventBus: EventBus;
+  instrument?: Instrument;
+  breakthroughSize?: number;
   timeGate: TimeGate;
   newsDecoupler: NewsDecoupler;
   liquidityZoneDetector: ILiquidityZoneDetector;
@@ -369,7 +373,7 @@ export class SignalEngineFSM implements ISignalEngineFSM {
     ctx.rangeCompressing = this.isRangeCompressing(ctx.candles);
 
     // ─── Check zone breakthrough: price breaks zone boundary by ≥1 pip ──────────
-    const breakthroughThreshold = 0.01; // 1 pip for XAU/USD (0.01 = 1 pip)
+    const breakthroughThreshold = this.deps.breakthroughSize ?? 0.01;
     if (zone.type === 'structural_high' && candle.close > zone.upperBoundary + breakthroughThreshold) {
       this.observationContext = null;
       this.transitionTo('scanning', 'zone_breakthrough_above', currentTime);
@@ -680,6 +684,7 @@ export class SignalEngineFSM implements ISignalEngineFSM {
     const signal: RawSignal = {
       id: crypto.randomUUID(),
       timestamp: currentTime.toISOString(),
+      instrument: this.deps.instrument ?? rejectionCandle.instrument,
       direction: ctx.direction,
       entryPrice: rejectionCandle.close,
       liquidityZoneLevel: (zone.upperBoundary + zone.lowerBoundary) / 2,

@@ -12,6 +12,7 @@
  * Requirements: 15.1, 15.2, 15.3, 15.5, 15.6, 15.7
  */
 
+import { isSupportedInstrument } from '../config/instrument.js';
 import { SystemConfig } from '../types/config.js';
 import {
   detectForbiddenEnvVars,
@@ -160,10 +161,10 @@ export function validateStartup(
     }
   }
 
-  // Check 4: Verify instrument is XAUUSD only
-  if (config.dataSource.instrument !== 'XAUUSD') {
+  // Check 4: Verify the configured instrument is supported
+  if (!isSupportedInstrument(config.dataSource.instrument)) {
     errors.push(
-      `[CRITICAL] Invalid instrument configured: "${config.dataSource.instrument}". Only "XAUUSD" is allowed.`,
+      `[CRITICAL] Invalid instrument configured: "${config.dataSource.instrument}". Supported instruments are "XAUUSD" and "BTCUSD".`,
     );
   }
 

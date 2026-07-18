@@ -62,7 +62,8 @@ function generateReasoning(input: FormatterInput): string {
     zoneClassification === 'expansion_zone' ? 'Expansion' : 'Chop';
   const patternLabel = rawSignal.rejectionCandleType.replace(/_/g, ' ');
 
-  let reasoning = `${dirLabel} XAUUSD | ${zoneLabel} zone | ${patternLabel} at liquidity zone ${rawSignal.liquidityZoneLevel.toFixed(2)}`;
+  const instrumentLabel = rawSignal.instrument ?? 'XAUUSD';
+  let reasoning = `${dirLabel} ${instrumentLabel} | ${zoneLabel} zone | ${patternLabel} at liquidity zone ${rawSignal.liquidityZoneLevel.toFixed(2)}`;
 
   if (kellyResult.adjustmentReason) {
     reasoning += ` | Risk: ${kellyResult.adjustmentReason}`;
@@ -184,7 +185,7 @@ export function createSignalOutputFormatter(): SignalOutputFormatter {
       return {
         id: rawSignal.id,
         timestamp: rawSignal.timestamp,
-        instrument: 'XAUUSD',
+        instrument: rawSignal.instrument ?? 'XAUUSD',
         direction: rawSignal.direction,
         entryPrice,
         stopLoss,

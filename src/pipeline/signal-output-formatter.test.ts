@@ -636,3 +636,22 @@ describe('SignalOutputFormatter', () => {
     });
   });
 });
+
+
+describe('SignalOutputFormatter - instrument propagation', () => {
+  it('labels BTC/USD signals without changing signal-only output structure', () => {
+    const formatter = createSignalOutputFormatter();
+    const rawSignal = makeRawSignal({ instrument: 'BTCUSD', entryPrice: 60_000 });
+    const result = formatter.format(
+      makeFormatterInput({
+        rawSignal,
+        stopLoss: 59_900,
+        targets: makeTargets({ tp2: 60_300, rUnit: 100 }),
+        slippageResult: makeNoSlippage(60_000),
+      }),
+    );
+
+    expect(result.instrument).toBe('BTCUSD');
+    expect(result.reasoning).toContain('BTCUSD');
+  });
+});

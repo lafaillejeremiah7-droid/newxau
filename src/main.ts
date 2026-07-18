@@ -18,6 +18,7 @@
  * Requirements: 1.1, 5, 6.3, 6.5, 8.9, 9, 10, 11, 12.1, 13.4, 14.1, 15.6, 16.1, 16.4
  */
 
+import { getInstrumentMetadata } from './config/instrument.js';
 import { loadConfig } from './config/loader.js';
 import { enforceSignalOnlyStartup } from './core/signal-only-enforcement.js';
 import { EventBus } from './core/event-bus.js';
@@ -70,6 +71,12 @@ async function main(): Promise<void> {
     console.error('[Isagi Engine] CRITICAL: Failed to load configuration.', err);
     process.exit(1);
   }
+
+  const instrumentMetadata = getInstrumentMetadata(config.dataSource.instrument);
+  console.log(
+    `[Isagi Engine] Instrument: ${instrumentMetadata.displayName} ` +
+      `(TradingView ${instrumentMetadata.tradingViewTicker})`,
+  );
 
   // ─── Step 2: Signal-only enforcement (broker check) ─────────────────────────
   try {
@@ -124,6 +131,7 @@ async function main(): Promise<void> {
   const circuitBreaker = new CircuitBreaker({
     thresholdPips: config.circuitBreaker.thresholdPips,
     suppressionMinutes: config.circuitBreaker.suppressionMinutes,
+    pipSize: instrumentMetadata.pipSize,
   });
 
   const macroFilterModule = new MacroFilterModule(
@@ -140,6 +148,8 @@ async function main(): Promise<void> {
   // Signal Engine FSM
   const signalEngineFSM = new SignalEngineFSM({
     eventBus,
+    instrument: config.dataSource.instrument,
+    breakthroughSize: instrumentMetadata.breakthroughSize,
     timeGate,
     newsDecoupler,
     liquidityZoneDetector,
@@ -149,7 +159,9 @@ async function main(): Promise<void> {
   });
 
   // Pipeline Components
-  const stopLossTargetMapper = createStopLossTargetMapper();
+  const stopLossTargetMapper = createStopLossTargetMapper({
+    pipSize: instrumentMetadata.pipSize,
+  });
   const volumeFilter = createVolumeFilter();
   const kellySizer = createKellySizer({
     equityBaseline: config.kelly.equityBaseline,
@@ -162,7 +174,9 @@ async function main(): Promise<void> {
     varianceMultiplierThreshold: config.kelly.varianceMultiplierThreshold,
     varianceReductionFactor: config.kelly.varianceReductionFactor,
   });
-  const slippageSimulator = createSlippageSimulator();
+  const slippageSimulator = createSlippageSimulator(Math.random, {
+    pipSize: instrumentMetadata.pipSize,
+  });
   const signalOutputFormatter = createSignalOutputFormatter();
 
   // Output Components

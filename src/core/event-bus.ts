@@ -15,12 +15,14 @@
 
 import { EventEmitter } from 'node:events';
 
+import type { Instrument } from '../config/instrument.js';
+
 // ─── Event Payload Types ─────────────────────────────────────────────────────
 
 export type Timeframe = 'M1' | 'M5' | 'M15' | 'H1';
 
 export interface Candle {
-  instrument: 'XAUUSD';
+  instrument: Instrument;
   timeframe: Timeframe;
   timestamp: string; // ISO 8601 UTC ms precision
   open: number;
@@ -54,6 +56,7 @@ export type RejectionCandleType =
 export interface RawSignal {
   id: string;
   timestamp: string;
+  instrument?: Instrument;
   direction: SignalDirection;
   entryPrice: number;
   liquidityZoneLevel: number;
@@ -85,7 +88,7 @@ export interface TicketDetail {
 export interface FormattedSignal {
   id: string;
   timestamp: string;
-  instrument: 'XAUUSD';
+  instrument: Instrument;
   direction: SignalDirection;
   entryPrice: number;
   stopLoss: number;

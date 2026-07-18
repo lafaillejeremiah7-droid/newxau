@@ -134,10 +134,13 @@ describe('Configuration Loader', () => {
       expect(() => validateInstrument('XAUUSD')).not.toThrow();
     });
 
-    it('should reject other instruments', () => {
+    it('should accept supported BTCUSD', () => {
+      expect(() => validateInstrument('BTCUSD')).not.toThrow();
+    });
+
+    it('should reject unsupported instruments', () => {
       expect(() => validateInstrument('EURUSD')).toThrow(/Invalid instrument configured/);
       expect(() => validateInstrument('GBPUSD')).toThrow(/Invalid instrument configured/);
-      expect(() => validateInstrument('BTCUSD')).toThrow(/Invalid instrument configured/);
       expect(() => validateInstrument('')).toThrow(/Invalid instrument configured/);
     });
   });
@@ -147,7 +150,7 @@ describe('Configuration Loader', () => {
       const config = loadConfig({});
       expect(config.dataSource.wsUrl).toBe('ws://localhost:8080');
       expect(config.dataSource.instrument).toBe('XAUUSD');
-      expect(config.telegram.botToken).toBe('8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ');
+      expect(config.telegram.botToken).toBe('');
       expect(config.telegram.chatId).toBe('7040023207');
       expect(config.dashboard.port).toBe(3000);
       expect(config.logging.dbPath).toBe('./data/signals.db');
@@ -179,7 +182,12 @@ describe('Configuration Loader', () => {
       });
     });
 
-    it('should always set instrument to XAUUSD (hardcoded)', () => {
+    it('should load BTCUSD when selected by environment', () => {
+      const config = loadConfig({ INSTRUMENT: 'BTCUSD' });
+      expect(config.dataSource.instrument).toBe('BTCUSD');
+    });
+
+    it('should keep XAUUSD as the default instrument', () => {
       const config = loadConfig({});
       expect(config.dataSource.instrument).toBe('XAUUSD');
     });

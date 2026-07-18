@@ -9,6 +9,7 @@
  */
 
 import WebSocket from 'ws';
+import { isSupportedInstrument, type Instrument } from '../config/instrument.js';
 import { EventBus } from '../core/event-bus.js';
 import type { Candle, Timeframe } from '../types/index.js';
 
@@ -16,7 +17,7 @@ import type { Candle, Timeframe } from '../types/index.js';
 
 export interface DataSourceConfig {
   wsUrl: string;
-  instrument: 'XAUUSD';
+  instrument: Instrument;
   timeframes: Timeframe[];
   reconnectIntervalMs: number;
 }
@@ -107,12 +108,8 @@ export function parseIncomingMessage(
   }
 }
 
-/**
- * Validates that the instrument is exclusively 'XAUUSD'.
- * Returns true if valid, false otherwise.
- */
-export function validateInstrument(instrument: string): boolean {
-  return instrument === 'XAUUSD';
+export function validateInstrument(instrument: string): instrument is Instrument {
+  return isSupportedInstrument(instrument);
 }
 
 /**
@@ -141,7 +138,7 @@ export function calculateReconnectDelay(state: ReconnectState): number {
 
 // ─── CandleIngestion Implementation ─────────────────────────────────────────
 
-/** Default timeout in ms to receive XAUUSD data after connecting (R16.4) */
+/** Default timeout in ms to receive configured instrument data after connecting (R16.4) */
 export const DEFAULT_STARTUP_HEALTH_TIMEOUT_MS = 30_000;
 
 export class CandleIngestion implements CandleIngestionModule {
@@ -157,7 +154,7 @@ export class CandleIngestion implements CandleIngestionModule {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private isConnecting = false;
   private isDisconnecting = false;
-  private hasReceivedXauUsd = false;
+  private hasReceivedInstrument = false;
   private startupHealthCheckTimer: ReturnType<typeof setTimeout> | null = null;
   private isSuppressedDueToNoData = false;
 
@@ -169,7 +166,7 @@ export class CandleIngestion implements CandleIngestionModule {
     this.config = config;
     this.reconnectState.baseIntervalMs = config.reconnectIntervalMs || 1000;
     this.isDisconnecting = false;
-    this.hasReceivedXauUsd = false;
+    this.hasReceivedInstrument = false;
     this.isSuppressedDueToNoData = false;
 
     const result = this.establishConnection();
@@ -180,10 +177,7 @@ export class CandleIngestion implements CandleIngestionModule {
     return result;
   }
 
-  /**
-   * Returns whether the module is suppressed due to no XAU/USD data from the source.
-   * (R16.4: remain in suppressed state until valid XAU/USD data is available)
-   */
+  /** Returns whether the module is suppressed due to no configured-instrument data. */
   get suppressed(): boolean {
     return this.isSuppressedDueToNoData;
   }
@@ -223,8 +217,8 @@ export class CandleIngestion implements CandleIngestionModule {
 
   /**
    * Starts the startup health check timer (R16.4).
-   * If no valid XAUUSD data is received within the timeout, logs a critical
-   * error and sets the module to suppressed state.
+   * If no valid data for the configured instrument is received within the timeout,
+   * logs a critical error and sets the module to suppressed state.
    */
   private startStartupHealthCheck(
     timeoutMs: number = DEFAULT_STARTUP_HEALTH_TIMEOUT_MS
@@ -234,15 +228,15 @@ export class CandleIngestion implements CandleIngestionModule {
     }
 
     this.startupHealthCheckTimer = setTimeout(() => {
-      if (!this.hasReceivedXauUsd) {
+      if (!this.hasReceivedInstrument) {
         this.isSuppressedDueToNoData = true;
         console.error(
           `[CandleIngestion] CRITICAL: Data source ${this.config?.wsUrl ?? 'unknown'} ` +
-            `did not provide XAU/USD data within ${timeoutMs}ms. ` +
-            `Remaining in suppressed state until valid XAU/USD data is available.`
+            `did not provide ${this.config?.instrument ?? 'configured instrument'} data within ${timeoutMs}ms. ` +
+            `Remaining in suppressed state until valid data is available.`
         );
         this.eventBus.publish('ingestion.suppressed', {
-          reason: 'no_xauusd_data',
+          reason: `no_${(this.config?.instrument ?? 'instrument').toLowerCase()}_data`,
           source: this.config?.wsUrl ?? 'unknown',
           timestamp: new Date().toISOString(),
         });
@@ -319,8 +313,11 @@ export class CandleIngestion implements CandleIngestionModule {
       return;
     }
 
-    // Validate instrument — only accept XAUUSD
-    if (!validateInstrument(message.instrument)) {
+    // Validate instrument — accept only the configured supported instrument
+    if (
+      !validateInstrument(message.instrument) ||
+      message.instrument !== this.config?.instrument
+    ) {
       const receiptTimestamp = new Date().toISOString();
       console.warn(
         `[CandleIngestion] Rejected instrument: ${message.instrument}, ` +
@@ -331,9 +328,9 @@ export class CandleIngestion implements CandleIngestionModule {
       return;
     }
 
-    // Track that we've received valid XAUUSD data (for startup health check)
-    if (!this.hasReceivedXauUsd) {
-      this.hasReceivedXauUsd = true;
+    // Track that we've received valid configured-instrument data (for startup health check)
+    if (!this.hasReceivedInstrument) {
+      this.hasReceivedInstrument = true;
       if (this.startupHealthCheckTimer) {
         clearTimeout(this.startupHealthCheckTimer);
         this.startupHealthCheckTimer = null;
@@ -357,7 +354,7 @@ export class CandleIngestion implements CandleIngestionModule {
 
     // Build the Candle object
     const candle: Candle = {
-      instrument: 'XAUUSD',
+      instrument: message.instrument,
       timeframe,
       timestamp: message.timestamp,
       open: message.open,

@@ -122,6 +122,7 @@ export function createEntrySignalGenerator(): IEntrySignalGenerator {
       const signal: RawSignal = {
         id: randomUUID(),
         timestamp: rejectionCandle.timestamp, // UTC timestamp from the M5 candle close
+        instrument: rejectionCandle.instrument,
         direction,
         entryPrice: closePrice,
         liquidityZoneLevel,

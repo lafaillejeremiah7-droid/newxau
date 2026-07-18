@@ -285,3 +285,16 @@ describe('SlippageSimulator', () => {
     });
   });
 });
+
+
+describe('SlippageSimulator - instrument price units', () => {
+  it('uses whole-dollar BTC/USD pip units', () => {
+    let call = 0;
+    const simulator = createSlippageSimulator(() => (call++ === 0 ? 0.1 : 0.5), { pipSize: 1 });
+    const result = simulator.applySlippage({ entryPrice: 60_000, direction: 'long' });
+
+    expect(result.applied).toBe(true);
+    expect(result.slippagePips).toBe(1.5);
+    expect(result.adjustedEntry).toBe(60_001.5);
+  });
+});

@@ -34,7 +34,7 @@ function createValidConfig(): SystemConfig {
       endSecondUTC: 59,
     },
     telegram: {
-      botToken: '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ',
+      botToken: 'test-token',
       chatId: '7040023207',
       maxRetries: 3,
       baseRetryMs: 2000,

@@ -3,10 +3,14 @@
  * Usage: npx tsx scripts/send-test-signal.ts
  */
 
-const BOT_TOKEN = '8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ';
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = '7040023207';
 
-const message = `🔴 <b>XAU/USD SHORT SIGNAL</b>
+const message = `⚠️ <b>TEST ONLY — NOT A REAL TRADING SIGNAL</b>
+
+<b>Purpose:</b> Verify Telegram delivery. Do not trade from this message.
+
+<b>Example:</b> XAU/USD SHORT
 
 <b>Entry:</b> 2387.45
 <b>Stop Loss:</b> 2389.95

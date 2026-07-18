@@ -1,6 +1,6 @@
-# Isagi Engine — XAU/USD Signal Bot
+# Isagi Engine — XAU/USD + BTC/USD Signal Bot
 
-Signal-only analysis engine for XAU/USD (Gold) with Telegram notifications and real-time dashboard.
+Signal-only analysis engine for XAU/USD (Gold) and BTC/USD (Bitcoin) with Telegram notifications and optional real-time dashboards.
 
 ## Quick Start
 
@@ -14,31 +14,38 @@ npm run build
 # Create data directory
 mkdir -p data
 
-# Start everything (bridge + bot + dashboard)
+# Start isolated XAU/USD and BTC/USD bridges and bots
 npm run start:all
+
+# Run only one instrument if needed
+START_INSTRUMENTS=BTCUSD npm run start:all
 ```
 
 That's it. Open http://localhost:3000 for the dashboard.
 
 ## What It Does
 
-- Analyzes XAU/USD price action using the Isagi Engine protocol
+- Analyzes XAU/USD and BTC/USD price action using the Isagi Engine protocol
 - Sends BUY/SELL signals to Telegram with entry, SL, TP1, TP2
 - Shows live engine state on a web dashboard
 - **SIGNAL ONLY** — does NOT place any trades automatically
 
 ## Architecture
 
-- **Data Source:** TradingView (free, no API key needed)
+- **Data Sources:** TradingView CFD scanner for `OANDA:XAUUSD` and crypto scanner for `COINBASE:BTCUSD` (free, no API key needed)
+- **Isolation:** XAU/USD and BTC/USD run as separate processes with separate bridge ports, runtime state, and SQLite databases
 - **Analysis:** FSM-based engine with observation → expansion → retracement → rejection pattern
 - **Filters:** Time Gate (12-17 UTC), News Decoupler, Volume Filter, Kelly Sizing, Circuit Breaker
 - **Output:** Telegram (split position 45%/55%) + Web Dashboard + SQLite Logging
 
 ## Telegram
 
-Signals are sent to:
-- Bot Token: `8926622863:AAF0QHHYAyEVQZiYV35b5vyeKxDC_ouMnmQ`
-- Chat ID: `7040023207`
+Set the credentials through environment variables; do not commit bot tokens or chat IDs:
+
+```bash
+export TELEGRAM_BOT_TOKEN="<your Telegram bot token>"
+export TELEGRAM_CHAT_ID="<your Telegram chat ID>"
+```
 
 ## Running Separately
 
@@ -56,4 +63,4 @@ npm start
 npm test
 ```
 
-660 unit tests covering all components.
+Automated tests cover the core engine, both instrument data paths, output formatting, persistence, and signal-only enforcement.
